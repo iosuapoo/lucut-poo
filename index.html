@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forest Zombie Survival</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            color: #fff;
+        }
+
+        #game-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #canvas3d {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* HUD Overlay */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #444;
+            padding: 10px 15px;
+            border-radius: 5px;
+            min-width: 180px;
+        }
+
+        .stat-bar-container {
+            width: 100%;
+            height: 12px;
+            background: #222;
+            margin-top: 5px;
+            border: 1px solid #555;
+            position: relative;
+        }
+
+        .stat-bar {
+            height: 100%;
+            width: 100%;
+            transition: width 0.2s;
+        }
+
+        #health-bar { background: #ff3333; }
+        #stamina-bar { background: #33ff33; }
+        #warmth-bar { background: #ffaa33; }
+
+        .hud-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px;
+            height: 10px;
+            pointer-events: none;
+        }
+
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        #crosshair::before {
+            top: 4px;
+            left: -8px;
+            width: 26px;
+            height: 2px;
+        }
+
+        #crosshair::after {
+            top: -8px;
+            left: 4px;
+            width: 2px;
+            height: 26px;
+        }
+
+        #inventory {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #555;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .inv-slot {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 1px solid #777;
+            margin: 0 5px;
+            background: rgba(255,255,255,0.1);
+            text-align: center;
+            line-height: 50px;
+            font-weight: bold;
+            font-size: 14px;
+            position: relative;
+        }
+
+        .inv-slot span {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 10px;
+        }
+
+        #prompt {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 8px 16px;
+            border: 1px solid #aaa;
+            border-radius: 4px;
+            display: none;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        /* Menus */
+        .overlay-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 15, 10, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .overlay-screen h1 {
+            font-size: 48px;
+            color: #ff3333;
+            text-shadow: 0 0 10px #000;
+            margin-bottom: 10px;
+            letter-spacing: 3px;
+        }
+
+        .overlay-screen p {
+            max-width: 600px;
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.6;
+            color: #ccc;
+        }
+
+        .btn {
+            background: #225522;
+            color: #fff;
+            border: 2px solid #44aa44;
+            padding: 12px 30px;
+            font-size: 18px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background: #337733;
+            border-color: #66ff66;
+            box-shadow: 0 0 10px rgba(100, 255, 100, 0.5);
+        }
+
+        #damage-flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 0, 0, 0.3);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s ease-out;
+        }
+
+        #objective {
+            background: rgba(0,0,0,0.6);
+            padding: 10px;
+            border-left: 4px solid #ffcc00;
+            margin-top: 10px;
+        }
+    </style>
+    <!-- Include Three.js via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="canvas3d"></canvas>
+        <div id="damage-flash"></div>
+        
+        <div id="hud">
+            <div class="hud-top">
+                <div class="stat-box">
+                    <div>HEALTH</div>
+                    <div class="stat-bar-container"><div id="health-bar" class="stat-bar"></div></div>
+                    <div style="margin-top: 5px;">STAMINA</div>
+                    <div class="stat-bar-container"><div id="stamina-bar" class="stat-bar"></div></div>
+                    <div style="margin-top: 5px;">WARMTH</div>
+                    <div class="stat-bar-container"><div id="warmth-bar" class="stat-bar"></div></div>
+                </div>
+                <div id="objective">
+                    <strong>OBJECTIVES:</strong><br>
+                    • Collect Wood (<span id="wood-count">0</span>/5)<br>
+                    • Build Campfire (Press 'F' near site)<br>
+                    • Eliminate Zombies (<span id="kills-count">0</span>/<span id="target-kills">10</span>)
+                </div>
+            </div>
+
+            <div id="crosshair"></div>
+            <div id="prompt">Press E to interact</div>
+
+            <div class="hud-bottom">
+                <div id="inventory">
+                    <div class="inv-slot" id="slot-wood">LOGS<span id="inv-wood-qty">0</span></div>
+                    <div class="inv-slot" id="slot-ammo">AMMO<span id="inv-ammo-qty">30</span></div>
+                </div>
+                <div class="stat-box" style="text-align: right;">
+                    <div style="font-size: 20px;" id="weapon-name">PISTOL</div>
+                    <div style="font-size: 24px;" id="ammo-display">12 / 30</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="overlay-screen">
+            <h1>DARK FOREST SURVIVAL</h1>
+            <p>
+                You are stranded in an infected forest. Night is falling and temperatures are dropping.<br><br>
+                <strong>CONTROLS:</strong><br>
+                WASD - Move | Shift - Sprint | Mouse - Look<br>
+                Left Click - Attack / Shoot | R - Reload<br>
+                E - Harvest Wood | F - Build/Feed Fire<br>
+            </p>
+            <button class="btn" id="start-btn">ENTER FOREST</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="overlay-screen" style="display: none;">
+            <h1 style="color: #ff0000;">YOU DIED</h1>
+            <p id="death-reason">The forest claimed another soul.</p>
+            <button class="btn" id="restart-btn">TRY AGAIN</button>
+        </div>
+
+        <!-- Victory Screen -->
+        <div id="victory-screen" class="overlay-screen" style="display: none;">
+            <h1 style="color: #44ff44;">SURVIVED</h1>
+            <p>You secured the area and built a fire to survive the cold night!</p>
+            <button class="btn" id="victory-btn">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        /* =========================================================================
+           GLOBAL GAME STATE & CONSTANTS
+           ========================================================================= */
+        const CONFIG = {
+            worldSize: 300,
+            treeCount: 150,
+            zombieCount: 10,
+            woodRequired: 5,
+            playerSpeed: 0.15,
+            sprintMultiplier: 1.6,
+            gravity: 0.008
+        };
+
+        const state = {
+            active: false,
+            health: 100,
+            stamina: 100,
+            warmth: 100,
+            wood: 0,
+            ammo: 30,
+            clip: 12,
+            clipSize: 12,
+            kills: 0,
+            targetKills: 10,
+            fireBuilt: false,
+            fireLit: false,
+            fireFuel: 0,
+            isSprinting: false,
+            isReloading: false
+        };
+
+        let scene, camera, renderer;
+        let playerContainer, cameraHolder;
+        let controls = { forward: false, backward: false, left: false, right: false, shift: false };
+        let velocityY = 0;
+        let isGrounded = true;
+
+        let trees = [];
+        let woodLogs = [];
+        let zombies = [];
+        let campfire = null;
+        let fireLight = null;
+        let fireParticles = [];
+        let gunMesh = null;
+        let gunFlash = null;
+
+        let raycaster = new THREE.Raycaster();
+        let mouseCenter = new THREE.Vector2(0, 0);
+
+        // Audio System (Synthesized via Web Audio API)
+        const AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (AudioCtx.state === 'suspended') {
+                AudioCtx.resume();
+            }
+            const osc = AudioCtx.createOscillator();
+            const gain = AudioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(AudioCtx.destination);
+
+            const now = AudioCtx.currentTime;
+
+            if (type === 'gunshot') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(10, now + 0.15);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'hit') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'zombie') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(80, now);
+                osc.frequency.linearRampToValueAtTime(50, now + 0.4);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'pickup') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'reload') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.linearRampToValueAtTime(350, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+        }
+
+        /* =========================================================================
+           INITIALIZATION & SETUP
+           ========================================================================= */
+        function init() {
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020408);
+            scene.fog = new THREE.FogExp2(0x020408, 0.025);
+
+            // Camera & Player Container Setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            playerContainer = new THREE.Object3D();
+            cameraHolder = new THREE.Object3D();
+            
+            cameraHolder.add(camera);
+            camera.position.set(0, 1.6, 0); // Eye height
+            playerContainer.add(cameraHolder);
+            scene.add(playerContainer);
+
+            // Renderer Setup
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas3d'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            // Lighting Setup
+            const ambientLight = new THREE.AmbientLight(0x111122, 0.3);
+            scene.add(ambientLight);
+
+            // Flashlight (Attached to Player Camera)
+            const flashlight = new THREE.SpotLight(0xffffff, 1.5, 40, Math.PI / 6, 0.5, 1);
+            flashlight.position.set(0, 0, 0);
+            flashlight.target.position.set(0, 0, -1);
+            camera.add(flashlight);
+            camera.add(flashlight.target);
+            flashlight.castShadow = true;
+
+            // Create Procedural World
+            createTerrain();
+            createForest();
+            createWoodItems();
+            createWeapon();
+            spawnZombies();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            setupInput();
+
+            // UI Listeners
+            document.getElementById('start-btn').addEventListener('click', startGame);
+            document.getElementById('restart-btn').addEventListener('click', restartGame);
+            document.getElementById('victory-btn').addEventListener('click', restartGame);
+        }
+
+        /* =========================================================================
+           PROCEDURAL GENERATION (TERRAIN, TREES, OBJECTS)
+           ========================================================================= */
+        function createTerrain() {
+            const size = CONFIG.worldSize;
+            const geometry = new THREE.PlaneGeometry(size, size, 64, 64);
+            geometry.rotateX(-Math.PI / 2);
+
+            // Add simple height variations
+            const pos = geometry.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                const vx = pos.getX(i);
+                const vz = pos.getZ(i);
+                const vy = Math.sin(vx * 0.05) * Math.cos(vz * 0.05) * 1.5;
+                pos.setY(i, vy);
+            }
+            geometry.computeVertexNormals();
+
+            // Dark Forest Floor Material
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x1a2614,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+
+            const terrain = new THREE.Mesh(geometry, material);
+            terrain.receiveShadow = true;
+            scene.add(terrain);
+        }
+
+        function createForest() {
+            const treeGeo = new THREE.CylinderGeometry(0.2, 0.8, 8, 6);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x2d1e18, roughness: 0.9 });
+            const leavesGeo = new THREE.ConeGeometry(3, 7, 5);
+            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x0a290a, roughness: 0.8 });
+
+            for (let i = 0; i < CONFIG.treeCount; i++) {
+                const x = (Math.random() - 0.5) * (CONFIG.worldSize - 20);
+                const z = (Math.random() - 0.5) * (CONFIG.worldSize - 20);
+
+                // Avoid spawning near start center
+                if (Math.sqrt(x * x + z * z) < 10) continue;
+
+                const treeGroup = new THREE.Group();
+                
+                const trunk = new THREE.Mesh(treeGeo, trunkMat);
+                trunk.position.y = 4;
+                trunk.castShadow = true;
+                trunk.receiveShadow = true;
+                treeGroup.add(trunk);
+
+                const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+                leaves.position.y = 7;
+                leaves.castShadow = true;
+                treeGroup.add(leaves);
+
+                const leaves2 = new THREE.Mesh(leavesGeo, leavesMat);
+                leaves2.position.y = 9;
+                leaves2.scale.set(0.7, 0.7, 0.7);
+                leaves2.castShadow = true;
+                treeGroup.add(leaves2);
+
+                treeGroup.position.set(x, 0, z);
+                scene.add(treeGroup);
+
+                trees.push({
+                    position: new THREE.Vector3(x, 0, z),
+                    radius: 0.8
+                });
+            }
+        }
+
+        function createWoodItems() {
+            const logGeo = new THREE.CylinderGeometry(0.15, 0.15, 1.2, 6);
+            logGeo.rotateZ(Math.PI / 2);
+            const logMat = new THREE.MeshStandardMaterial({ color: 0x664422, roughness: 0.8 });
+
+            for (let i = 0; i < 15; i++) {
+                const x = (Math.random() - 0.5) * (CONFIG.worldSize - 40);
+                const z = (Math.random() - 0.5) * (CONFIG.worldSize - 40);
+
+                const log = new THREE.Mesh(logGeo, logMat);
+                log.position.set(x, 0.15, z);
+                log.rotation.y = Math.random() * Math.PI;
+                log.castShadow = true;
+                scene.add(log);
+
+                woodLogs.push(log);
+            }
+        }
+
+        function createWeapon() {
+            const group = new THREE.Group();
+
+            const bodyGeo = new THREE.BoxGeometry(0.1, 0.15, 0.4);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.3 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            group.add(body);
+
+            const barrelGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8);
+            barrelGeo.rotateX(Math.PI / 2);
+            const barrel = new THREE.Mesh(barrelGeo, bodyMat);
+            barrel.position.set(0, 0.04, -0.25);
+            group.add(barrel);
+
+            // Muzzle Flash Mesh
+            const flashGeo = new THREE.SphereGeometry(0.08, 8, 8);
+            const flashMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 });
+            gunFlash = new THREE.Mesh(flashGeo, flashMat);
+            gunFlash.position.set(0, 0.04, -0.45);
+            group.add(gunFlash);
+
+            group.position.set(0.2, -0.2, -0.4);
+            camera.add(group);
+            gunMesh = group;
+        }
+
+        /* =========================================================================
+           ZOMBIE AI SYSTEM
+           ========================================================================= */
+        function createZombieMesh() {
+            const zombieGroup = new THREE.Group();
+
+            // Material
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0x3b5336, roughness: 0.8 });
+            const clothesMat = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.9 });
+
+            // Body
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.25), clothesMat);
+            torso.position.y = 1.05;
+            torso.castShadow = true;
+            zombieGroup.add(torso);
+
+            // Head
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), skinMat);
+            head.position.y = 1.55;
+            head.castShadow = true;
+            zombieGroup.add(head);
+
+            // Arms
+            const armGeo = new THREE.BoxGeometry(0.12, 0.6, 0.12);
+            const leftArm = new THREE.Mesh(armGeo, skinMat);
+            leftArm.position.set(-0.31, 1.1, -0.2);
+            leftArm.rotation.x = -Math.PI / 2.5;
+            leftArm.castShadow = true;
+            zombieGroup.add(leftArm);
+
+            const rightArm = new THREE.Mesh(armGeo, skinMat);
+            rightArm.position.set(0.31, 1.1, -0.2);
+            rightArm.rotation.x = -Math.PI / 2.5;
+            rightArm.castShadow = true;
+            zombieGroup.add(rightArm);
+
+            // Legs
+            const legGeo = new THREE.BoxGeometry(0.18, 0.7, 0.18);
+            const leftLeg = new THREE.Mesh(legGeo, clothesMat);
+            leftLeg.position.set(-0.15, 0.35, 0);
+            leftLeg.castShadow = true;
+            zombieGroup.add(leftLeg);
+
+            const rightLeg = new THREE.Mesh(legGeo, clothesMat);
+            rightLeg.position.set(0.15, 0.35, 0);
+            rightLeg.castShadow = true;
+            zombieGroup.add(rightLeg);
+
+            zombieGroup.userData = { leftLeg, rightLeg, leftArm, rightArm };
+
+            return zombieGroup;
+        }
+
+        function spawnZombies() {
+            for (let i = 0; i < CONFIG.zombieCount; i++) {
+                const mesh = createZombieMesh();
+                
+                // Random position away from origin
+                let angle = Math.random() * Math.PI * 2;
+                let dist = 30 + Math.random() * 80;
+                let x = Math.cos(angle) * dist;
+                let z = Math.sin(angle) * dist;
+
+                mesh.position.set(x, 0, z);
+                scene.add(mesh);
+
+                zombies.push({
+                    mesh: mesh,
+                    health: 100,
+                    speed: 0.03 + Math.random() * 0.02,
+                    state: 'idle',
+                    targetPos: new THREE.Vector3(x, 0, z),
+                    animTimer: Math.random() * 10,
+                    groanTimer: Math.random() * 5
+                });
+            }
+        }
+
+        function updateZombies(delta) {
+            const playerPos = playerContainer.position;
+
+            zombies.forEach((zombie, index) => {
+                if (zombie.health <= 0) return;
+
+                const zPos = zombie.mesh.position;
+                const distToPlayer = zPos.distanceTo(playerPos);
+
+                // Audio timer
+                zombie.groanTimer -= delta;
+                if (zombie.groanTimer <= 0 && distToPlayer < 25) {
+                    playSound('zombie');
+                    zombie.groanTimer = 4 + Math.random() * 6;
+                }
+
+                // AI Logic
+                if (distToPlayer < 30) {
+                    zombie.state = 'chase';
+                }
+
+                if (zombie.state === 'chase') {
+                    // Look towards player
+                    zombie.mesh.lookAt(playerPos.x, zombie.mesh.position.y, playerPos.z);
+
+                    // Move towards player
+                    const moveDir = new THREE.Vector3().subVectors(playerPos, zPos).normalize();
+                    moveDir.y = 0;
+                    zPos.add(moveDir.multiplyScalar(zombie.speed));
+
+                    // Attack logic
+                    if (distToPlayer < 1.5) {
+                        damagePlayer(10 * delta);
+                    }
+                }
+
+                // Walking Animation
+                zombie.animTimer += delta * 8;
+                const legAngle = Math.sin(zombie.animTimer) * 0.5;
+                zombie.mesh.userData.leftLeg.rotation.x = legAngle;
+                zombie.mesh.userData.rightLeg.rotation.x = -legAngle;
+            });
+        }
+
+        /* =========================================================================
+           CAMPFIRE & CRAFTING SYSTEM
+           ========================================================================= */
+        function buildCampfire(pos) {
+            const group = new THREE.Group();
+
+            // Stones Ring
+            const stoneMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9 });
+            const stoneGeo = new THREE.DodecahedronGeometry(0.15);
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const stone = new THREE.Mesh(stoneGeo, stoneMat);
+                stone.position.set(Math.cos(angle) * 0.6, 0.05, Math.sin(angle) * 0.6);
+                group.add(stone);
+            }
+
+            // Firewood Logs
+            const logGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.8);
+            const logMat = new THREE.MeshStandardMaterial({ color: 0x442200 });
+            for (let i = 0; i < 3; i++) {
+                const log = new THREE.Mesh(logGeo, logMat);
+                log.rotation.y = (i / 3) * Math.PI;
+                log.rotation.z = Math.PI / 6;
+                log.position.y = 0.15;
+                group.add(log);
+            }
+
+            // Light Source
+            fireLight = new THREE.PointLight(0xffaa33, 2, 15);
+            fireLight.position.set(0, 0.5, 0);
+            fireLight.castShadow = true;
+            group.add(fireLight);
+
+            group.position.copy(pos);
+            scene.add(group);
+
+            campfire = group;
+            state.fireBuilt = true;
+            state.fireLit = true;
+            state.fireFuel = 100;
+
+            // Spawn Fire Particles Container
+            for (let i = 0; i < 15; i++) {
+                const pGeo = new THREE.TetrahedronGeometry(0.05 + Math.random() * 0.05);
+                const pMat = new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true });
+                const p = new THREE.Mesh(pGeo, pMat);
+                p.position.set(
+                    (Math.random() - 0.5) * 0.3,
+                    0.2 + Math.random() * 0.5,
+                    (Math.random() - 0.5) * 0.3
+                );
+                group.add(p);
+                fireParticles.push(p);
+            }
+        }
+
+        function updateCampfire(delta) {
+            if (!state.fireLit || !campfire) return;
+
+            // Deplete Fuel
+            state.fireFuel -= delta * 1.5;
+            if (state.fireFuel <= 0) {
+                state.fireFuel = 0;
+                state.fireLit = false;
+                fireLight.intensity = 0;
+            } else {
+                // Flicker Light
+                fireLight.intensity = 1.5 + Math.random() * 0.8 * (state.fireFuel / 100);
+                fireLight.distance = 10 + (state.fireFuel / 100) * 10;
+            }
+
+            // Animate Particles
+            fireParticles.forEach(p => {
+                p.position.y += delta * 0.5;
+                p.rotation.x += 0.05;
+                if (p.position.y > 1.2) {
+                    p.position.y = 0.2;
+                    p.position.x = (Math.random() - 0.5) * 0.3;
+                    p.position.z = (Math.random() - 0.5) * 0.3;
+                }
+            });
+
+            // Heat Player if close
+            const dist = playerContainer.position.distanceTo(campfire.position);
+            if (dist < 6 && state.fireLit) {
+                state.warmth = Math.min(100, state.warmth + delta * 10);
+            }
+        }
+
+        /* =========================================================================
+           CONTROLS & INPUT HANDLING
+           ========================================================================= */
+        function setupInput() {
+            document.addEventListener('keydown', (e) => {
+                if (!state.active) return;
+                switch (e.code) {
+                    case 'KeyW': controls.forward = true; break;
+                    case 'KeyS': controls.backward = true; break;
+                    case 'KeyA': controls.left = true; break;
+                    case 'KeyD': controls.right = true; break;
+                    case 'ShiftLeft': controls.shift = true; break;
+                    case 'KeyR': reloadWeapon(); break;
+                    case 'KeyE': interactWorld(); break;
+                    case 'KeyF': interactFire(); break;
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                switch (e.code) {
+                    case 'KeyW': controls.forward = false; break;
+                    case 'KeyS': controls.backward = false; break;
+                    case 'KeyA': controls.left = false; break;
+                    case 'KeyD': controls.right = false; break;
+                    case 'ShiftLeft': controls.shift = false; break;
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (document.pointerLockElement === document.body) {
+                    playerContainer.rotation.y -= e.movementX * 0.002;
+                    cameraHolder.rotation.x -= e.movementY * 0.002;
+                    cameraHolder.rotation.x = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, cameraHolder.rotation.x));
+                }
+            });
+
+            document.addEventListener('mousedown', (e) => {
+                if (state.active && e.button === 0) {
+                    shoot();
+                }
+            });
+        }
+
+        /* =========================================================================
+           GAMEPLAY MECHANICS (SHOOTING, DAMAGE, INTERACTION)
+           ========================================================================= */
+        function shoot() {
+            if (state.isReloading || state.clip <= 0) return;
+
+            state.clip--;
+            updateHUD();
+            playSound('gunshot');
+
+            // Visual Muzzle Flash & Gun Kick
+            gunFlash.material.opacity = 1;
+            setTimeout(() => gunFlash.material.opacity = 0, 50);
+            gunMesh.position.z = -0.3; // Recoil
+
+            // Raycasting for Hit Detection
+            raycaster.setFromCamera(mouseCenter, camera);
+            
+            const zombieMeshes = zombies.filter(z => z.health > 0).map(z => z.mesh);
+            const intersects = raycaster.intersectObjects(zombieMeshes, true);
+
+            if (intersects.length > 0) {
+                let hitObj = intersects[0].object;
+                while (hitObj.parent && !hitObj.userData.leftLeg) {
+                    hitObj = hitObj.parent;
+                }
+
+                const targetZombie = zombies.find(z => z.mesh === hitObj);
+                if (targetZombie) {
+                    targetZombie.health -= 35;
+                    playSound('hit');
+
+                    if (targetZombie.health <= 0) {
+                        scene.remove(targetZombie.mesh);
+                        state.kills++;
+                        updateHUD();
+                        checkWinCondition();
+                    }
+                }
+            }
+        }
+
+        function reloadWeapon() {
+            if (state.isReloading || state.clip === state.clipSize || state.ammo <= 0) return;
+
+            state.isReloading = true;
+            playSound('reload');
+
+            setTimeout(() => {
+                const needed = state.clipSize - state.clip;
+                const available = Math.min(needed, state.ammo);
+                state.clip += available;
+                state.ammo -= available;
+                state.isReloading = false;
+                updateHUD();
+            }, 1500);
+        }
+
+        function interactWorld() {
+            // Wood pickup check
+            for (let i = woodLogs.length - 1; i >= 0; i--) {
+                const log = woodLogs[i];
+                if (playerContainer.position.distanceTo(log.position) < 2.5) {
+                    scene.remove(log);
+                    woodLogs.splice(i, 1);
+                    state.wood++;
+                    playSound('pickup');
+                    updateHUD();
+                    break;
+                }
+            }
+        }
+
+        function interactFire() {
+            const playerPos = playerContainer.position;
+
+            if (!state.fireBuilt) {
+                if (state.wood >= CONFIG.woodRequired) {
+                    state.wood -= CONFIG.woodRequired;
+                    const buildPos = playerPos.clone().add(new THREE.Vector3(0, 0, -2).applyQuaternion(playerContainer.quaternion));
+                    buildPos.y = 0;
+                    buildCampfire(buildPos);
+                    updateHUD();
+                    checkWinCondition();
+                }
+            } else {
+                // Add fuel to existing fire
+                if (playerPos.distanceTo(campfire.position) < 3 && state.wood > 0) {
+                    state.wood--;
+                    state.fireFuel = Math.min(100, state.fireFuel + 30);
+                    state.fireLit = true;
+                    playSound('pickup');
+                    updateHUD();
+                }
+            }
+        }
+
+        function damagePlayer(amount) {
+            state.health -= amount;
+            document.getElementById('damage-flash').style.opacity = '1';
+            setTimeout(() => document.getElementById('damage-flash').style.opacity = '0', 100);
+
+            if (state.health <= 0) {
+                gameOver('You were killed by zombies.');
+            }
+            updateHUD();
+        }
+
+        function checkWinCondition() {
+            if (state.kills >= state.targetKills && state.fireBuilt) {
+                state.active = false;
+                document.exitPointerLock();
+                document.getElementById('victory-screen').style.display = 'flex';
+            }
+        }
+
+        /* =========================================================================
+           CORE ENGINE LOOP & MOVEMENT
+           ========================================================================= */
+        function updatePlayer(delta) {
+            // Stamina & Speed Logic
+            let speed = CONFIG.playerSpeed;
+            if (controls.shift && state.stamina > 0 && (controls.forward || controls.backward || controls.left || controls.right)) {
+                speed *= CONFIG.sprintMultiplier;
+                state.stamina = Math.max(0, state.stamina - delta * 20);
+            } else {
+                state.stamina = Math.min(100, state.stamina + delta * 10);
+            }
+
+            // Environmental Cold Logic
+            state.warmth = Math.max(0, state.warmth - delta * 0.8);
+            if (state.warmth <= 0) {
+                damagePlayer(delta * 2);
+            }
+
+            // Direction Vector Creation
+            const moveVector = new THREE.Vector3();
+            if (controls.forward) moveVector.z -= 1;
+            if (controls.backward) moveVector.z += 1;
+            if (controls.left) moveVector.x -= 1;
+            if (controls.right) moveVector.x += 1;
+
+            moveVector.normalize();
+            moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerContainer.rotation.y);
+            moveVector.multiplyScalar(speed);
+
+            // Simple Collision Detection against Trees
+            const newPos = playerContainer.position.clone().add(moveVector);
+            let collide = false;
+
+            for (let tree of trees) {
+                if (newPos.distanceTo(tree.position) < tree.radius + 0.5) {
+                    collide = true;
+                    break;
+                }
+            }
+
+            if (!collide) {
+                playerContainer.position.copy(newPos);
+            }
+
+            // Weapon Anim Recovery (Recoil restoration)
+            if (gunMesh) {
+                gunMesh.position.z = THREE.MathUtils.lerp(gunMesh.position.z, -0.4, 0.1);
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('health-bar').style.width = Math.max(0, state.health) + '%';
+            document.getElementById('stamina-bar').style.width = Math.max(0, state.stamina) + '%';
+            document.getElementById('warmth-bar').style.width = Math.max(0, state.warmth) + '%';
+            
+            document.getElementById('inv-wood-qty').innerText = state.wood;
+            document.getElementById('inv-ammo-qty').innerText = state.ammo;
+            document.getElementById('ammo-display').innerText = `${state.clip} / ${state.ammo}`;
+            document.getElementById('wood-count').innerText = state.wood;
+            document.getElementById('kills-count').innerText = state.kills;
+
+            // Display Prompts based on Raycast distance/context
+            const promptEl = document.getElementById('prompt');
+            let promptText = "";
+
+            // Check wood interaction proximity
+            for (let log of woodLogs) {
+                if (playerContainer.position.distanceTo(log.position) < 2.5) {
+                    promptText = "Press E to collect Log";
+                    break;
+                }
+            }
+
+            if (!promptText && !state.fireBuilt && state.wood >= CONFIG.woodRequired) {
+                promptText = "Press F to Build Campfire";
+            } else if (!promptText && state.fireBuilt) {
+                if (playerContainer.position.distanceTo(campfire.position) < 3) {
+                    promptText = state.wood > 0 ? "Press F to add Fuel to Fire" : "Fire is Burning";
+                }
+            }
+
+            if (promptText) {
+                promptEl.innerText = promptText;
+                promptEl.style.display = 'block';
+            } else {
+                promptEl.style.display = 'none';
+            }
+        }
+
+        let clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+
+            if (state.active) {
+                updatePlayer(delta);
+                updateZombies(delta);
+                updateCampfire(delta);
+                updateHUD();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        /* =========================================================================
+           UI & STATE CONTROL
+           ========================================================================= */
+        function startGame() {
+            document.body.requestPointerLock();
+            document.getElementById('start-screen').style.display = 'none';
+            state.active = true;
+            clock.start();
+        }
+
+        function gameOver(reason) {
+            state.active = false;
+            document.exitPointerLock();
+            document.getElementById('death-reason').innerText = reason;
+            document.getElementById('game-over-screen').style.display = 'flex';
+        }
+
+        function restartGame() {
+            window.location.reload();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Run Engine
+        window.onload = () => {
+            init();
+            animate();
+        };
+    </script>
+</body>
+</html>
