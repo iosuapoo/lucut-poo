@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>20-Room Grand Mansion 3D</title>
+    <title>20-Room Grand Mansion 3D with Furniture</title>
     <style>
         * {
             box-sizing: border-box;
@@ -71,7 +71,7 @@
     <div id="crosshair"></div>
     <div id="ui-layer">
         <div class="hud-card">
-            <h1>20-Room Grand Mansion</h1>
+            <h1>20-Room Furnished Grand Mansion</h1>
             <p><strong>WASD / Arrows</strong> — Move</p>
             <p><strong>Shift</strong> — Sprint</p>
             <p><strong>Space</strong> — Jump</p>
@@ -237,9 +237,21 @@
             const matWood = new THREE.MeshLambertMaterial({ map: woodTex, opacity: 1.0, transparent: false });
             const matWall = new THREE.MeshLambertMaterial({ map: wallTex, opacity: 1.0, transparent: false });
             const matMarble = new THREE.MeshLambertMaterial({ map: marbleTex, opacity: 1.0, transparent: false });
+            
+            // Materials for furniture & decorations
+            const matTableWood = new THREE.MeshLambertMaterial({ color: 0x4a2c11 });
+            const matDressers = new THREE.MeshLambertMaterial({ color: 0x3d2314 });
+            const matGoldHandles = new THREE.MeshLambertMaterial({ color: 0xd4af37 });
+            const matCushion = new THREE.MeshLambertMaterial({ color: 0x8b0000 });
+            const matPlantLeaves = new THREE.MeshLambertMaterial({ color: 0x1e5622 });
+            const matPot = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
+            const matPaintingFrame = new THREE.MeshLambertMaterial({ color: 0xb8860b });
+            const matPaintingCanvas = new THREE.MeshLambertMaterial({ color: 0x2f4f4f });
 
             const wallGeometries = [];
             const floorGeometries = [];
+            const furnitureGeometries = [];
+            const accentGeometries = [];
 
             const groundFloor = new THREE.BoxGeometry(400, 1, 400);
             groundFloor.translate(0, -0.5, 0);
@@ -393,11 +405,114 @@
             addWall(50, 20, 2, 150, 30, 140);
             addWall(2, 20, 50, 125, 30, 140);
 
+            // Helper function: Add Table with 4 legs
+            function addTable(x, y, z, width, depth, height) {
+                const top = new THREE.BoxGeometry(width, 0.4, depth);
+                top.translate(x, y + height, z);
+                furnitureGeometries.push(top);
+
+                const legW = 0.3;
+                const legH = height;
+                const legPositions = [
+                    [x - width/2 + 0.3, y + legH/2, z - depth/2 + 0.3],
+                    [x + width/2 - 0.3, y + legH/2, z - depth/2 + 0.3],
+                    [x - width/2 + 0.3, y + legH/2, z + depth/2 - 0.3],
+                    [x + width/2 - 0.3, y + legH/2, z + depth/2 - 0.3]
+                ];
+
+                legPositions.forEach(pos => {
+                    const leg = new THREE.BoxGeometry(legW, legH, legW);
+                    leg.translate(pos[0], pos[1], pos[2]);
+                    furnitureGeometries.push(leg);
+                });
+            }
+
+            // Helper function: Add Dresser with Drawers
+            function addDresser(x, y, z, width, depth, height, drawersCount) {
+                const body = new THREE.BoxGeometry(width, height, depth);
+                body.translate(x, y + height/2, z);
+                furnitureGeometries.push(body);
+
+                const drawerH = (height - 0.4) / drawersCount;
+                for (let i = 0; i < drawersCount; i++) {
+                    const dY = y + 0.2 + (i * drawerH) + (drawerH / 2);
+                    
+                    // Drawer panel detail
+                    const drawerFront = new THREE.BoxGeometry(width - 0.4, drawerH - 0.1, 0.1);
+                    drawerFront.translate(x, dY, z + depth/2 + 0.05);
+                    furnitureGeometries.push(drawerFront);
+
+                    // Drawer handle
+                    const handle = new THREE.BoxGeometry(1.2, 0.1, 0.2);
+                    handle.translate(x, dY, z + depth/2 + 0.15);
+                    accentGeometries.push(handle);
+                }
+            }
+
+            // Helper function: Add Potted Plant
+            function addPottedPlant(x, y, z) {
+                const pot = new THREE.CylinderGeometry(1.0, 0.7, 2.0, 8);
+                pot.translate(x, y + 1.0, z);
+                furnitureGeometries.push(pot);
+
+                const bush = new THREE.SphereGeometry(1.8, 8, 8);
+                bush.translate(x, y + 2.8, z);
+                accentGeometries.push(bush);
+            }
+
+            // Helper function: Add Wall Painting
+            function addPainting(x, y, z, width, height, rotY) {
+                const frame = new THREE.BoxGeometry(width, height, 0.2);
+                frame.rotateY(rotY);
+                frame.translate(x, y, z);
+                accentGeometries.push(frame);
+            }
+
+            // Room Furniture Coordinates Array (Populating Rooms)
+            const roomCenters = [
+                // Ground floor
+                {x: -150, z: -140, y: 0}, {x: -150, z: -70, y: 0}, {x: -150, z: 0, y: 0}, {x: -150, z: 70, y: 0}, {x: -150, z: 140, y: 0},
+                {x: -80, z: -140, y: 0}, {x: -80, z: -70, y: 0}, {x: -80, z: 0, y: 0}, {x: -80, z: 70, y: 0}, {x: -80, z: 140, y: 0},
+                {x: 80, z: -140, y: 0}, {x: 80, z: -70, y: 0}, {x: 80, z: 0, y: 0}, {x: 80, z: 70, y: 0}, {x: 80, z: 140, y: 0},
+                {x: 150, z: -140, y: 0}, {x: 150, z: -70, y: 0}, {x: 150, z: 0, y: 0}, {x: 150, z: 70, y: 0}, {x: 150, z: 140, y: 0},
+                // Second floor
+                {x: -150, z: -140, y: 20}, {x: -150, z: -70, y: 20}, {x: -150, z: 0, y: 20}, {x: -150, z: 70, y: 20}, {x: -150, z: 140, y: 20},
+                {x: -80, z: -140, y: 20}, {x: -80, z: -70, y: 20}, {x: -80, z: 0, y: 20}, {x: -80, z: 70, y: 20}, {x: -80, z: 140, y: 20},
+                {x: 80, z: -140, y: 20}, {x: 80, z: -70, y: 20}, {x: 80, z: 0, y: 20}, {x: 80, z: 70, y: 20}, {x: 80, z: 140, y: 20},
+                {x: 150, z: -140, y: 20}, {x: 150, z: -70, y: 20}, {x: 150, z: 0, y: 20}, {x: 150, z: 70, y: 20}, {x: 150, z: 140, y: 20}
+            ];
+
+            // Populate all 40 rooms/suites with furniture, tables, dressers with drawers, plants, and art
+            roomCenters.forEach((room, idx) => {
+                // Table in center of room
+                addTable(room.x, room.y, room.z, 6, 4, 2.5);
+
+                // Dresser with drawers along back wall
+                addDresser(room.x, room.y, room.z - 10, 8, 3, 4, 4);
+
+                // Side table / small dresser near doorway
+                addDresser(room.x + 8, room.y, room.z + 5, 4, 2.5, 3, 3);
+
+                // Decorative Plant in corner
+                addPottedPlant(room.x - 10, room.y, room.z - 10);
+
+                // Paintings on walls
+                addPainting(room.x - 12, room.y + 8, room.z, 6, 4, Math.PI / 2);
+                addPainting(room.x + 12, room.y + 8, room.z, 6, 4, -Math.PI / 2);
+            });
+
+            // Merge geometries into optimized render meshes
             const mergedWalls = THREE.BufferGeometryUtils.mergeBufferGeometries(wallGeometries);
             scene.add(new THREE.Mesh(mergedWalls, matWall));
 
             const mergedFloors = THREE.BufferGeometryUtils.mergeBufferGeometries(floorGeometries);
             scene.add(new THREE.Mesh(mergedFloors, matWood));
+
+            const mergedFurniture = THREE.BufferGeometryUtils.mergeBufferGeometries(furnitureGeometries);
+            scene.add(new THREE.Mesh(mergedFurniture, matTableWood));
+
+            const mergedAccents = THREE.BufferGeometryUtils.mergeBufferGeometries(accentGeometries);
+            scene.add(new THREE.Mesh(mergedAccents, matGoldHandles));
 
             // Stair Steps
             const stairGeometries = [];
