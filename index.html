@@ -97,6 +97,7 @@
         let renderer;
         let controls;
         let clock = new THREE.Clock();
+
         let moveState = {
             forward: false,
             backward: false,
@@ -105,6 +106,7 @@
             sprint: false,
             jump: false
         };
+
         let velocity = new THREE.Vector3();
         let canJump = false;
         let flickeringLights = [];
@@ -257,99 +259,137 @@
                 wallGeometries.push(geo);
             }
 
-            // Exterior Perimeter Walls
+            // Outer Perimeter
             addWall(400, 40, 2, 0, 20, -200);
             addWall(400, 40, 2, 0, 20, 200);
             addWall(2, 40, 400, -200, 20, 0);
             addWall(2, 40, 400, 200, 20, 0);
 
-            // Floor 1 Room Walls (10 Rooms)
+            // Ground Floor Walls - Room 1
             addWall(50, 20, 2, -150, 10, -140);
             addWall(2, 20, 50, -175, 10, -140);
+            // Ground Floor Walls - Room 2
             addWall(50, 20, 2, -150, 10, -70);
             addWall(2, 20, 50, -175, 10, -70);
+            // Ground Floor Walls - Room 3
             addWall(50, 20, 2, -150, 10, 0);
             addWall(2, 20, 50, -175, 10, 0);
+            // Ground Floor Walls - Room 4
             addWall(50, 20, 2, -150, 10, 70);
             addWall(2, 20, 50, -175, 10, 70);
+            // Ground Floor Walls - Room 5
             addWall(50, 20, 2, -150, 10, 140);
             addWall(2, 20, 50, -175, 10, 140);
 
+            // Ground Floor Walls - Room 6
             addWall(50, 20, 2, -80, 10, -140);
             addWall(2, 20, 50, -105, 10, -140);
+            // Ground Floor Walls - Room 7
             addWall(50, 20, 2, -80, 10, -70);
             addWall(2, 20, 50, -105, 10, -70);
+            // Ground Floor Walls - Room 8
             addWall(50, 20, 2, -80, 10, 0);
             addWall(2, 20, 50, -105, 10, 0);
+            // Ground Floor Walls - Room 9
             addWall(50, 20, 2, -80, 10, 70);
             addWall(2, 20, 50, -105, 10, 70);
+            // Ground Floor Walls - Room 10
             addWall(50, 20, 2, -80, 10, 140);
             addWall(2, 20, 50, -105, 10, 140);
 
+            // Ground Floor Walls - Room 11
             addWall(50, 20, 2, 80, 10, -140);
             addWall(2, 20, 50, 55, 10, -140);
+            // Ground Floor Walls - Room 12
             addWall(50, 20, 2, 80, 10, -70);
             addWall(2, 20, 50, 55, 10, -70);
+            // Ground Floor Walls - Room 13
             addWall(50, 20, 2, 80, 10, 0);
             addWall(2, 20, 50, 55, 10, 0);
+            // Ground Floor Walls - Room 14
             addWall(50, 20, 2, 80, 10, 70);
             addWall(2, 20, 50, 55, 10, 70);
+            // Ground Floor Walls - Room 15
             addWall(50, 20, 2, 80, 10, 140);
             addWall(2, 20, 50, 55, 10, 140);
 
+            // Ground Floor Walls - Room 16
             addWall(50, 20, 2, 150, 10, -140);
             addWall(2, 20, 50, 125, 10, -140);
+            // Ground Floor Walls - Room 17
             addWall(50, 20, 2, 150, 10, -70);
             addWall(2, 20, 50, 125, 10, -70);
+            // Ground Floor Walls - Room 18
             addWall(50, 20, 2, 150, 10, 0);
             addWall(2, 20, 50, 125, 10, 0);
+            // Ground Floor Walls - Room 19
             addWall(50, 20, 2, 150, 10, 70);
             addWall(2, 20, 50, 125, 10, 70);
+            // Ground Floor Walls - Room 20
             addWall(50, 20, 2, 150, 10, 140);
             addWall(2, 20, 50, 125, 10, 140);
 
-            // Floor 2 Room Walls (10 Rooms)
+            // Second Floor Walls - Upper Suite 1
             addWall(50, 20, 2, -150, 30, -140);
             addWall(2, 20, 50, -175, 30, -140);
+            // Second Floor Walls - Upper Suite 2
             addWall(50, 20, 2, -150, 30, -70);
             addWall(2, 20, 50, -175, 30, -70);
+            // Second Floor Walls - Upper Suite 3
             addWall(50, 20, 2, -150, 30, 0);
             addWall(2, 20, 50, -175, 30, 0);
+            // Second Floor Walls - Upper Suite 4
             addWall(50, 20, 2, -150, 30, 70);
             addWall(2, 20, 50, -175, 30, 70);
+            // Second Floor Walls - Upper Suite 5
             addWall(50, 20, 2, -150, 30, 140);
             addWall(2, 20, 50, -175, 30, 140);
 
+            // Second Floor Walls - Upper Suite 6
             addWall(50, 20, 2, -80, 30, -140);
             addWall(2, 20, 50, -105, 30, -140);
+            // Second Floor Walls - Upper Suite 7
             addWall(50, 20, 2, -80, 30, -70);
             addWall(2, 20, 50, -105, 30, -70);
+            // Second Floor Walls - Upper Suite 8
             addWall(50, 20, 2, -80, 30, 0);
             addWall(2, 20, 50, -105, 30, 0);
+            // Second Floor Walls - Upper Suite 9
             addWall(50, 20, 2, -80, 30, 70);
             addWall(2, 20, 50, -105, 30, 70);
+            // Second Floor Walls - Upper Suite 10
             addWall(50, 20, 2, -80, 30, 140);
             addWall(2, 20, 50, -105, 30, 140);
 
+            // Second Floor Walls - Upper Suite 11
             addWall(50, 20, 2, 80, 30, -140);
             addWall(2, 20, 50, 55, 30, -140);
+            // Second Floor Walls - Upper Suite 12
             addWall(50, 20, 2, 80, 30, -70);
             addWall(2, 20, 50, 55, 30, -70);
+            // Second Floor Walls - Upper Suite 13
             addWall(50, 20, 2, 80, 30, 0);
             addWall(2, 20, 50, 55, 30, 0);
+            // Second Floor Walls - Upper Suite 14
             addWall(50, 20, 2, 80, 30, 70);
             addWall(2, 20, 50, 55, 30, 70);
+            // Second Floor Walls - Upper Suite 15
             addWall(50, 20, 2, 80, 30, 140);
             addWall(2, 20, 50, 55, 30, 140);
 
+            // Second Floor Walls - Upper Suite 16
             addWall(50, 20, 2, 150, 30, -140);
             addWall(2, 20, 50, 125, 30, -140);
+            // Second Floor Walls - Upper Suite 17
             addWall(50, 20, 2, 150, 30, -70);
             addWall(2, 20, 50, 125, 30, -70);
+            // Second Floor Walls - Upper Suite 18
             addWall(50, 20, 2, 150, 30, 0);
             addWall(2, 20, 50, 125, 30, 0);
+            // Second Floor Walls - Upper Suite 19
             addWall(50, 20, 2, 150, 30, 70);
             addWall(2, 20, 50, 125, 30, 70);
+            // Second Floor Walls - Upper Suite 20
             addWall(50, 20, 2, 150, 30, 140);
             addWall(2, 20, 50, 125, 30, 140);
 
@@ -359,7 +399,7 @@
             const mergedFloors = THREE.BufferGeometryUtils.mergeBufferGeometries(floorGeometries);
             scene.add(new THREE.Mesh(mergedFloors, matWood));
 
-            // Grand Central Staircase Steps
+            // Stair Steps
             const stairGeometries = [];
             const step0 = new THREE.BoxGeometry(30, 1.0, 2.0);
             step0.translate(0, 0.5, -20.0);
@@ -441,7 +481,7 @@
             const ambient = new THREE.AmbientLight(0xffffff, 0.4);
             scene.add(ambient);
 
-            // Perimeter Exterior Lights (All Around Mansion)
+            // Exterior Perimeter Lights
             createPointLightInstance(-210, 15, -210, 0xffaa44, 1.5, 90);
             createPointLightInstance(-140, 15, -210, 0xffaa44, 1.5, 90);
             createPointLightInstance(-70, 15, -210, 0xffaa44, 1.5, 90);
@@ -470,7 +510,7 @@
             createPointLightInstance(210, 15, 70, 0xffaa44, 1.5, 90);
             createPointLightInstance(210, 15, 140, 0xffaa44, 1.5, 90);
 
-            // Ground Floor Lights (10 Rooms)
+            // Ground Floor Interior Room Lights
             createPointLightInstance(-150, 18, -140, 0xffaa44, 1.4, 80);
             createPointLightInstance(-150, 18, -70, 0xffaa44, 1.4, 80);
             createPointLightInstance(-150, 18, 0, 0xffaa44, 1.4, 80);
@@ -495,7 +535,7 @@
             createPointLightInstance(150, 18, 70, 0xffaa44, 1.4, 80);
             createPointLightInstance(150, 18, 140, 0xffaa44, 1.4, 80);
 
-            // Second Floor Lights (10 Rooms)
+            // Second Floor Interior Room Lights
             createPointLightInstance(-150, 38, -140, 0xffaa44, 1.4, 80);
             createPointLightInstance(-150, 38, -70, 0xffaa44, 1.4, 80);
             createPointLightInstance(-150, 38, 0, 0xffaa44, 1.4, 80);
