@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grand Mansion 3D</title>
+    <title>20-Room Grand Mansion 3D</title>
     <style>
         * {
             box-sizing: border-box;
@@ -37,7 +37,6 @@
             padding: 15px 20px;
             border-radius: 8px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-            backdrop-filter: blur(8px);
         }
         h1 {
             font-size: 1.2rem;
@@ -64,15 +63,15 @@
             pointer-events: none;
         }
     </style>
-    <!-- Three.js and PointerLock Controls -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
 </head>
 <body>
     <div id="crosshair"></div>
     <div id="ui-layer">
         <div class="hud-card">
-            <h1>Grand Mansion Interior</h1>
+            <h1>20-Room Grand Mansion</h1>
             <p><strong>WASD / Arrows</strong> — Move</p>
             <p><strong>Shift</strong> — Sprint</p>
             <p><strong>Space</strong> — Jump</p>
@@ -82,450 +81,456 @@
     <div id="canvas-container"></div>
 
     <script>
-        // ===================================================================
-        // 1. ENGINE CONFIGURATION & GLOBAL STATE
-        // ===================================================================
         const CONFIG = {
             fov: 75,
             near: 0.1,
-            far: 1000,
+            far: 600,
             playerHeight: 2.2,
-            walkSpeed: 10.0,
-            runSpeed: 20.0,
+            walkSpeed: 12.0,
+            runSpeed: 24.0,
             jumpForce: 10.0,
-            gravity: 25.0,
-            mansionWidth: 240,
-            mansionLength: 240,
-            wallHeight: 40,
-            floorTwoHeight: 20
+            gravity: 25.0
         };
 
-        let scene, camera, renderer, controls;
+        let scene;
+        let camera;
+        let renderer;
+        let controls;
         let clock = new THREE.Clock();
-        let moveState = { forward: false, backward: false, left: false, right: false, sprint: false, jump: false };
+        let moveState = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false,
+            sprint: false,
+            jump: false
+        };
         let velocity = new THREE.Vector3();
         let canJump = false;
         let flickeringLights = [];
 
-        // ===================================================================
-        // 2. PROCEDURAL TEXTURE GENERATOR
-        // ===================================================================
         const TextureFactory = {
-            createParquetWood: function() {
+            createSolidWood: function() {
                 const canvas = document.createElement('canvas');
-                canvas.width = 1024; canvas.height = 1024;
+                canvas.width = 128;
+                canvas.height = 128;
                 const ctx = canvas.getContext('2d');
                 ctx.fillStyle = '#2b1704';
-                ctx.fillRect(0, 0, 1024, 1024);
-
-                const plankSize = 128;
-                for (let x = 0; x < 1024; x += plankSize) {
-                    for (let y = 0; y < 1024; y += plankSize) {
-                        const isHorizontal = ((x / plankSize) + (y / plankSize)) % 2 === 0;
-                        ctx.fillStyle = isHorizontal ? '#3a1f06' : '#2d1804';
-                        ctx.fillRect(x, y, plankSize - 2, plankSize - 2);
-
-                        ctx.strokeStyle = 'rgba(10, 5, 0, 0.25)';
-                        ctx.lineWidth = 2;
-                        const numLines = 8;
-                        for (let i = 0; i < numLines; i++) {
-                            ctx.beginPath();
-                            if (isHorizontal) {
-                                const lineY = y + (i * (plankSize / numLines));
-                                ctx.moveTo(x, lineY);
-                                ctx.lineTo(x + plankSize - 2, lineY);
-                            } else {
-                                const lineX = x + (i * (plankSize / numLines));
-                                ctx.moveTo(lineX, y);
-                                ctx.lineTo(lineX, y + plankSize - 2);
-                            }
-                            ctx.stroke();
-                        }
-                    }
-                }
+                ctx.fillRect(0, 0, 128, 128);
+                ctx.fillStyle = '#3a1f06';
+                ctx.fillRect(0, 0, 62, 62);
+                ctx.fillRect(64, 64, 62, 62);
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.wrapS = THREE.RepeatWrapping;
                 tex.wrapT = THREE.RepeatWrapping;
                 return tex;
             },
-
-            createDamaskWallpaper: function() {
+            createSolidWall: function() {
                 const canvas = document.createElement('canvas');
-                canvas.width = 1024; canvas.height = 1024;
+                canvas.width = 128;
+                canvas.height = 128;
                 const ctx = canvas.getContext('2d');
-                
                 ctx.fillStyle = '#1c0c10';
-                ctx.fillRect(0, 0, 1024, 1024);
-
-                ctx.fillStyle = '#2a1218';
-                for (let x = 0; x < 1024; x += 128) {
-                    ctx.fillRect(x + 16, 0, 96, 1024);
-                }
-
+                ctx.fillRect(0, 0, 128, 128);
                 ctx.strokeStyle = '#3d1c24';
                 ctx.lineWidth = 4;
-                for (let x = -512; x < 1536; x += 128) {
-                    ctx.beginPath();
-                    ctx.moveTo(x, 0);
-                    ctx.lineTo(x + 1024, 1024);
-                    ctx.stroke();
-
-                    ctx.beginPath();
-                    ctx.moveTo(x, 1024);
-                    ctx.lineTo(x + 1024, 0);
-                    ctx.stroke();
-                }
-
+                ctx.strokeRect(0, 0, 128, 128);
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.wrapS = THREE.RepeatWrapping;
                 tex.wrapT = THREE.RepeatWrapping;
                 return tex;
             },
-
-            createMarbleTexture: function() {
+            createSolidMarble: function() {
                 const canvas = document.createElement('canvas');
-                canvas.width = 512; canvas.height = 512;
+                canvas.width = 64;
+                canvas.height = 64;
                 const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#eaeaea';
-                ctx.fillRect(0, 0, 512, 512);
-
-                ctx.strokeStyle = '#9999a0';
-                ctx.lineWidth = 3;
-                for (let i = 0; i < 16; i++) {
-                    ctx.beginPath();
-                    ctx.moveTo(Math.random() * 512, 0);
-                    ctx.bezierCurveTo(
-                        Math.random() * 512, 170, 
-                        Math.random() * 512, 340, 
-                        Math.random() * 512, 512
-                    );
-                    ctx.stroke();
-                }
-
-                const tex = new THREE.CanvasTexture(canvas);
-                tex.wrapS = THREE.RepeatWrapping;
-                tex.wrapT = THREE.RepeatWrapping;
-                return tex;
-            },
-
-            createRugTexture: function() {
-                const canvas = document.createElement('canvas');
-                canvas.width = 512; canvas.height = 512;
-                const ctx = canvas.getContext('2d');
-                
-                ctx.fillStyle = '#5c1010';
-                ctx.fillRect(0, 0, 512, 512);
-
-                ctx.strokeStyle = '#d4af37';
-                ctx.lineWidth = 12;
-                ctx.strokeRect(20, 20, 472, 472);
-
-                ctx.lineWidth = 4;
-                ctx.strokeRect(36, 36, 440, 440);
-
-                ctx.fillStyle = '#d4af37';
-                ctx.beginPath();
-                ctx.arc(256, 256, 80, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = '#5c1010';
-                ctx.beginPath();
-                ctx.arc(256, 256, 60, 0, Math.PI * 2);
-                ctx.fill();
-
+                ctx.fillStyle = '#dcdcdc';
+                ctx.fillRect(0, 0, 64, 64);
                 return new THREE.CanvasTexture(canvas);
             }
         };
 
-        // ===================================================================
-        // 3. GRAPHICS ENGINE INITIALIZATION
-        // ===================================================================
         function initEngine() {
             const container = document.getElementById('canvas-container');
-
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x020204);
-            scene.fog = new THREE.FogExp2(0x020204, 0.007);
-
+            scene.fog = new THREE.FogExp2(0x020204, 0.008);
             camera = new THREE.PerspectiveCamera(CONFIG.fov, window.innerWidth / window.innerHeight, CONFIG.near, CONFIG.far);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.1;
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+            renderer.shadowMap.enabled = false;
             container.appendChild(renderer.domElement);
-
             controls = new THREE.PointerLockControls(camera, document.body);
             document.addEventListener('click', () => controls.lock());
-
             setupInputs();
-            buildMansion();
-            setupLighting();
-
+            buildOptimizedMansion();
+            setupLights();
             window.addEventListener('resize', onWindowResize);
         }
 
-        // ===================================================================
-        // 4. INPUT MANAGEMENT
-        // ===================================================================
         function setupInputs() {
-            const onKeyDown = (e) => {
+            document.addEventListener('keydown', (e) => {
                 switch (e.code) {
-                    case 'KeyW': case 'ArrowUp': moveState.forward = true; break;
-                    case 'KeyS': case 'ArrowDown': moveState.backward = true; break;
-                    case 'KeyA': case 'ArrowLeft': moveState.left = true; break;
-                    case 'KeyD': case 'ArrowRight': moveState.right = true; break;
-                    case 'ShiftLeft': case 'ShiftRight': moveState.sprint = true; break;
-                    case 'Space': if (canJump) velocity.y += CONFIG.jumpForce; canJump = false; break;
+                    case 'KeyW':
+                    case 'ArrowUp':
+                        moveState.forward = true;
+                        break;
+                    case 'KeyS':
+                    case 'ArrowDown':
+                        moveState.backward = true;
+                        break;
+                    case 'KeyA':
+                    case 'ArrowLeft':
+                        moveState.left = true;
+                        break;
+                    case 'KeyD':
+                    case 'ArrowRight':
+                        moveState.right = true;
+                        break;
+                    case 'ShiftLeft':
+                    case 'ShiftRight':
+                        moveState.sprint = true;
+                        break;
+                    case 'Space':
+                        if (canJump) velocity.y += CONFIG.jumpForce;
+                        canJump = false;
+                        break;
                 }
-            };
-
-            const onKeyUp = (e) => {
-                switch (e.code) {
-                    case 'KeyW': case 'ArrowUp': moveState.forward = false; break;
-                    case 'KeyS': case 'ArrowDown': moveState.backward = false; break;
-                    case 'KeyA': case 'ArrowLeft': moveState.left = false; break;
-                    case 'KeyD': case 'ArrowRight': moveState.right = false; break;
-                    case 'ShiftLeft': case 'ShiftRight': moveState.sprint = false; break;
-                }
-            };
-
-            document.addEventListener('keydown', onKeyDown);
-            document.addEventListener('keyup', onKeyUp);
-        }
-
-        // ===================================================================
-        // 5. EXPANDED ARCHITECTURE, MULTI-FLOOR STRUCTURE & STAIRS
-        // ===================================================================
-        function buildMansion() {
-            const parquetTex = TextureFactory.createParquetWood();
-            parquetTex.repeat.set(30, 30);
-
-            const wallpaperTex = TextureFactory.createDamaskWallpaper();
-            wallpaperTex.repeat.set(15, 5);
-
-            const marbleTex = TextureFactory.createMarbleTexture();
-            marbleTex.repeat.set(4, 16);
-
-            const rugTex = TextureFactory.createRugTexture();
-
-            const materials = {
-                woodFloor: new THREE.MeshStandardMaterial({ map: parquetTex, roughness: 0.25, metalness: 0.1, opacity: 1.0, transparent: false }),
-                walls: new THREE.MeshStandardMaterial({ map: wallpaperTex, roughness: 0.85, metalness: 0.05, opacity: 1.0, transparent: false }),
-                marble: new THREE.MeshStandardMaterial({ map: marbleTex, roughness: 0.1, metalness: 0.1, opacity: 1.0, transparent: false }),
-                gold: new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85, roughness: 0.2, opacity: 1.0, transparent: false }),
-                darkWood: new THREE.MeshStandardMaterial({ color: 0x241408, roughness: 0.4, metalness: 0.1, opacity: 1.0, transparent: false }),
-                rug: new THREE.MeshStandardMaterial({ map: rugTex, roughness: 0.9, opacity: 1.0, transparent: false })
-            };
-
-            const mansionGroup = new THREE.Group();
-
-            // Ground Floor Base (240x240 units)
-            const floorGeo = new THREE.BoxGeometry(240, 1, 240);
-            const mainFloor = new THREE.Mesh(floorGeo, materials.woodFloor);
-            mainFloor.position.y = -0.5;
-            mainFloor.receiveShadow = true;
-            mansionGroup.add(mainFloor);
-
-            // Second Floor Mezzanine
-            const secondFloorGroup = new THREE.Group();
-            
-            const leftUpperFloor = new THREE.Mesh(new THREE.BoxGeometry(90, 1, 240), materials.woodFloor);
-            leftUpperFloor.position.set(-75, 20, 0);
-            leftUpperFloor.receiveShadow = true;
-            secondFloorGroup.add(leftUpperFloor);
-
-            const rightUpperFloor = new THREE.Mesh(new THREE.BoxGeometry(90, 1, 240), materials.woodFloor);
-            rightUpperFloor.position.set(75, 20, 0);
-            rightUpperFloor.receiveShadow = true;
-            secondFloorGroup.add(rightUpperFloor);
-
-            const frontUpperFloor = new THREE.Mesh(new THREE.BoxGeometry(60, 1, 100), materials.woodFloor);
-            frontUpperFloor.position.set(0, 20, 70);
-            frontUpperFloor.receiveShadow = true;
-            secondFloorGroup.add(frontUpperFloor);
-
-            const backUpperFloor = new THREE.Mesh(new THREE.BoxGeometry(60, 1, 40), materials.woodFloor);
-            backUpperFloor.position.set(0, 20, -100);
-            backUpperFloor.receiveShadow = true;
-            secondFloorGroup.add(backUpperFloor);
-
-            mansionGroup.add(secondFloorGroup);
-
-            // Roof / Ceiling (40 units tall)
-            const ceilingGeo = new THREE.BoxGeometry(240, 1, 240);
-            const ceiling = new THREE.Mesh(ceilingGeo, materials.walls);
-            ceiling.position.y = 40;
-            ceiling.receiveShadow = true;
-            mansionGroup.add(ceiling);
-
-            // Wall Helper
-            function createWall(w, h, d, x, y, z) {
-                const geo = new THREE.BoxGeometry(w, h, d);
-                const mesh = new THREE.Mesh(geo, materials.walls);
-                mesh.position.set(x, y, z);
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                mansionGroup.add(mesh);
-            }
-
-            // Outer Perimeter Walls (240x240 Enclosure, 40 High)
-            createWall(240, 40, 1, 0, 20, -120); // Back
-            createWall(1, 40, 240, -120, 20, 0); // Left
-            createWall(1, 40, 240, 120, 20, 0);  // Right
-            createWall(90, 40, 1, -75, 20, 120); // Front Left
-            createWall(90, 40, 1, 75, 20, 120);  // Front Right
-
-            // Grand Marble Columns
-            const pillarGeo = new THREE.CylinderGeometry(2.2, 2.6, 40, 32);
-            const pillarPositions = [
-                [-30, 20, -35], [30, 20, -35],
-                [-30, 20, 35],  [30, 20, 35],
-                [-85, 20, -35], [85, 20, -35],
-                [-85, 20, 35],  [85, 20, 35]
-            ];
-            pillarPositions.forEach(pos => {
-                const pillar = new THREE.Mesh(pillarGeo, materials.marble);
-                pillar.position.set(pos[0], pos[1], pos[2]);
-                pillar.castShadow = true;
-                pillar.receiveShadow = true;
-                mansionGroup.add(pillar);
             });
-
-            // GRAND DOUBLE-WINGED STAIRCASE
-            const stairStepCount = 22;
-            const stairWidth = 14;
-            const stepDepth = 1.8;
-            const stepHeight = 20 / stairStepCount;
-
-            // Central Base Ramp Steps
-            for (let i = 0; i < stairStepCount / 2; i++) {
-                const stepGeo = new THREE.BoxGeometry(stairWidth * 1.6, stepHeight, stepDepth);
-                const step = new THREE.Mesh(stepGeo, materials.marble);
-                step.position.set(0, (i * stepHeight) + (stepHeight / 2), -25 - (i * stepDepth));
-                step.castShadow = true;
-                step.receiveShadow = true;
-                mansionGroup.add(step);
-            }
-
-            // Central Landing Platform
-            const landingGeo = new THREE.BoxGeometry(stairWidth * 2.8, stepHeight, stepDepth * 4);
-            const landing = new THREE.Mesh(landingGeo, materials.marble);
-            landing.position.set(0, 10, -25 - ((stairStepCount / 2) * stepDepth));
-            landing.castShadow = true;
-            landing.receiveShadow = true;
-            mansionGroup.add(landing);
-
-            // Left & Right Branching Upper Stairs
-            for (let i = 0; i < stairStepCount / 2; i++) {
-                const yPos = 10 + (i * stepHeight) + (stepHeight / 2);
-                const zPos = -25 - ((stairStepCount / 2) * stepDepth) - (i * stepDepth);
-
-                // Left Wing
-                const stepLeft = new THREE.Mesh(new THREE.BoxGeometry(stairWidth, stepHeight, stepDepth), materials.marble);
-                stepLeft.position.set(-18 - (i * 0.9), yPos, zPos);
-                stepLeft.castShadow = true;
-                stepLeft.receiveShadow = true;
-                mansionGroup.add(stepLeft);
-
-                // Right Wing
-                const stepRight = new THREE.Mesh(new THREE.BoxGeometry(stairWidth, stepHeight, stepDepth), materials.marble);
-                stepRight.position.set(18 + (i * 0.9), yPos, zPos);
-                stepRight.castShadow = true;
-                stepRight.receiveShadow = true;
-                mansionGroup.add(stepRight);
-            }
-
-            // Rug
-            const rugGeo = new THREE.PlaneGeometry(40, 70);
-            const rug = new THREE.Mesh(rugGeo, materials.rug);
-            rug.rotation.x = -Math.PI / 2;
-            rug.position.set(0, 0.02, 25);
-            rug.receiveShadow = true;
-            mansionGroup.add(rug);
-
-            // Central Chandelier Assembly
-            const chandelierGroup = new THREE.Group();
-            const ringGeo1 = new THREE.TorusGeometry(10, 0.3, 12, 32);
-            const ring1 = new THREE.Mesh(ringGeo1, materials.gold);
-            ring1.rotation.x = Math.PI / 2;
-            chandelierGroup.add(ring1);
-
-            const ringGeo2 = new THREE.TorusGeometry(6, 0.2, 12, 32);
-            const ring2 = new THREE.Mesh(ringGeo2, materials.gold);
-            ring2.rotation.x = Math.PI / 2;
-            ring2.position.y = -2.5;
-            chandelierGroup.add(ring2);
-
-            for (let i = 0; i < 16; i++) {
-                const angle = (i / 16) * Math.PI * 2;
-                const cx = Math.cos(angle) * 10;
-                const cz = Math.sin(angle) * 10;
-
-                const candleGeo = new THREE.CylinderGeometry(0.15, 0.15, 1.4, 8);
-                const candleMat = new THREE.MeshBasicMaterial({ color: 0xffeedd });
-                const candle = new THREE.Mesh(candleGeo, candleMat);
-                candle.position.set(cx, 0.7, cz);
-                chandelierGroup.add(candle);
-
-                const cLight = new THREE.PointLight(0xffaa44, 0.8, 35);
-                cLight.position.set(cx, 1.8, cz);
-                chandelierGroup.add(cLight);
-                flickeringLights.push({ light: cLight, baseIntensity: 0.8, speed: 12 + Math.random() * 8 });
-            }
-
-            chandelierGroup.position.set(0, 32, 0);
-            mansionGroup.add(chandelierGroup);
-
-            scene.add(mansionGroup);
+            document.addEventListener('keyup', (e) => {
+                switch (e.code) {
+                    case 'KeyW':
+                    case 'ArrowUp':
+                        moveState.forward = false;
+                        break;
+                    case 'KeyS':
+                    case 'ArrowDown':
+                        moveState.backward = false;
+                        break;
+                    case 'KeyA':
+                    case 'ArrowLeft':
+                        moveState.left = false;
+                        break;
+                    case 'KeyD':
+                    case 'ArrowRight':
+                        moveState.right = false;
+                        break;
+                    case 'ShiftLeft':
+                    case 'ShiftRight':
+                        moveState.sprint = false;
+                        break;
+                }
+            });
         }
 
-        // ===================================================================
-        // 6. DYNAMIC TWITCHING & FLICKERING LIGHTING SYSTEM
-        // ===================================================================
-        function setupLighting() {
-            const ambient = new THREE.AmbientLight(0x221a24, 0.35);
+        function buildOptimizedMansion() {
+            const woodTex = TextureFactory.createSolidWood();
+            woodTex.repeat.set(40, 40);
+            const wallTex = TextureFactory.createSolidWall();
+            wallTex.repeat.set(20, 5);
+            const marbleTex = TextureFactory.createSolidMarble();
+
+            const matWood = new THREE.MeshLambertMaterial({ map: woodTex, opacity: 1.0, transparent: false });
+            const matWall = new THREE.MeshLambertMaterial({ map: wallTex, opacity: 1.0, transparent: false });
+            const matMarble = new THREE.MeshLambertMaterial({ map: marbleTex, opacity: 1.0, transparent: false });
+
+            const wallGeometries = [];
+            const floorGeometries = [];
+
+            const groundFloor = new THREE.BoxGeometry(400, 1, 400);
+            groundFloor.translate(0, -0.5, 0);
+            floorGeometries.push(groundFloor);
+
+            const secondFloor = new THREE.BoxGeometry(400, 1, 400);
+            secondFloor.translate(0, 19.5, 0);
+            floorGeometries.push(secondFloor);
+
+            const ceiling = new THREE.BoxGeometry(400, 1, 400);
+            ceiling.translate(0, 40, 0);
+            wallGeometries.push(ceiling);
+
+            function addWall(w, h, d, x, y, z) {
+                const geo = new THREE.BoxGeometry(w, h, d);
+                geo.translate(x, y, z);
+                wallGeometries.push(geo);
+            }
+
+            // Exterior Perimeter Walls
+            addWall(400, 40, 2, 0, 20, -200);
+            addWall(400, 40, 2, 0, 20, 200);
+            addWall(2, 40, 400, -200, 20, 0);
+            addWall(2, 40, 400, 200, 20, 0);
+
+            // Floor 1 Room Walls (10 Rooms)
+            addWall(50, 20, 2, -150, 10, -140);
+            addWall(2, 20, 50, -175, 10, -140);
+            addWall(50, 20, 2, -150, 10, -70);
+            addWall(2, 20, 50, -175, 10, -70);
+            addWall(50, 20, 2, -150, 10, 0);
+            addWall(2, 20, 50, -175, 10, 0);
+            addWall(50, 20, 2, -150, 10, 70);
+            addWall(2, 20, 50, -175, 10, 70);
+            addWall(50, 20, 2, -150, 10, 140);
+            addWall(2, 20, 50, -175, 10, 140);
+
+            addWall(50, 20, 2, -80, 10, -140);
+            addWall(2, 20, 50, -105, 10, -140);
+            addWall(50, 20, 2, -80, 10, -70);
+            addWall(2, 20, 50, -105, 10, -70);
+            addWall(50, 20, 2, -80, 10, 0);
+            addWall(2, 20, 50, -105, 10, 0);
+            addWall(50, 20, 2, -80, 10, 70);
+            addWall(2, 20, 50, -105, 10, 70);
+            addWall(50, 20, 2, -80, 10, 140);
+            addWall(2, 20, 50, -105, 10, 140);
+
+            addWall(50, 20, 2, 80, 10, -140);
+            addWall(2, 20, 50, 55, 10, -140);
+            addWall(50, 20, 2, 80, 10, -70);
+            addWall(2, 20, 50, 55, 10, -70);
+            addWall(50, 20, 2, 80, 10, 0);
+            addWall(2, 20, 50, 55, 10, 0);
+            addWall(50, 20, 2, 80, 10, 70);
+            addWall(2, 20, 50, 55, 10, 70);
+            addWall(50, 20, 2, 80, 10, 140);
+            addWall(2, 20, 50, 55, 10, 140);
+
+            addWall(50, 20, 2, 150, 10, -140);
+            addWall(2, 20, 50, 125, 10, -140);
+            addWall(50, 20, 2, 150, 10, -70);
+            addWall(2, 20, 50, 125, 10, -70);
+            addWall(50, 20, 2, 150, 10, 0);
+            addWall(2, 20, 50, 125, 10, 0);
+            addWall(50, 20, 2, 150, 10, 70);
+            addWall(2, 20, 50, 125, 10, 70);
+            addWall(50, 20, 2, 150, 10, 140);
+            addWall(2, 20, 50, 125, 10, 140);
+
+            // Floor 2 Room Walls (10 Rooms)
+            addWall(50, 20, 2, -150, 30, -140);
+            addWall(2, 20, 50, -175, 30, -140);
+            addWall(50, 20, 2, -150, 30, -70);
+            addWall(2, 20, 50, -175, 30, -70);
+            addWall(50, 20, 2, -150, 30, 0);
+            addWall(2, 20, 50, -175, 30, 0);
+            addWall(50, 20, 2, -150, 30, 70);
+            addWall(2, 20, 50, -175, 30, 70);
+            addWall(50, 20, 2, -150, 30, 140);
+            addWall(2, 20, 50, -175, 30, 140);
+
+            addWall(50, 20, 2, -80, 30, -140);
+            addWall(2, 20, 50, -105, 30, -140);
+            addWall(50, 20, 2, -80, 30, -70);
+            addWall(2, 20, 50, -105, 30, -70);
+            addWall(50, 20, 2, -80, 30, 0);
+            addWall(2, 20, 50, -105, 30, 0);
+            addWall(50, 20, 2, -80, 30, 70);
+            addWall(2, 20, 50, -105, 30, 70);
+            addWall(50, 20, 2, -80, 30, 140);
+            addWall(2, 20, 50, -105, 30, 140);
+
+            addWall(50, 20, 2, 80, 30, -140);
+            addWall(2, 20, 50, 55, 30, -140);
+            addWall(50, 20, 2, 80, 30, -70);
+            addWall(2, 20, 50, 55, 30, -70);
+            addWall(50, 20, 2, 80, 30, 0);
+            addWall(2, 20, 50, 55, 30, 0);
+            addWall(50, 20, 2, 80, 30, 70);
+            addWall(2, 20, 50, 55, 30, 70);
+            addWall(50, 20, 2, 80, 30, 140);
+            addWall(2, 20, 50, 55, 30, 140);
+
+            addWall(50, 20, 2, 150, 30, -140);
+            addWall(2, 20, 50, 125, 30, -140);
+            addWall(50, 20, 2, 150, 30, -70);
+            addWall(2, 20, 50, 125, 30, -70);
+            addWall(50, 20, 2, 150, 30, 0);
+            addWall(2, 20, 50, 125, 30, 0);
+            addWall(50, 20, 2, 150, 30, 70);
+            addWall(2, 20, 50, 125, 30, 70);
+            addWall(50, 20, 2, 150, 30, 140);
+            addWall(2, 20, 50, 125, 30, 140);
+
+            const mergedWalls = THREE.BufferGeometryUtils.mergeBufferGeometries(wallGeometries);
+            scene.add(new THREE.Mesh(mergedWalls, matWall));
+
+            const mergedFloors = THREE.BufferGeometryUtils.mergeBufferGeometries(floorGeometries);
+            scene.add(new THREE.Mesh(mergedFloors, matWood));
+
+            // Grand Central Staircase Steps
+            const stairGeometries = [];
+            const step0 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step0.translate(0, 0.5, -20.0);
+            stairGeometries.push(step0);
+            const step1 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step1.translate(0, 1.5, -22.0);
+            stairGeometries.push(step1);
+            const step2 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step2.translate(0, 2.5, -24.0);
+            stairGeometries.push(step2);
+            const step3 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step3.translate(0, 3.5, -26.0);
+            stairGeometries.push(step3);
+            const step4 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step4.translate(0, 4.5, -28.0);
+            stairGeometries.push(step4);
+            const step5 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step5.translate(0, 5.5, -30.0);
+            stairGeometries.push(step5);
+            const step6 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step6.translate(0, 6.5, -32.0);
+            stairGeometries.push(step6);
+            const step7 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step7.translate(0, 7.5, -34.0);
+            stairGeometries.push(step7);
+            const step8 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step8.translate(0, 8.5, -36.0);
+            stairGeometries.push(step8);
+            const step9 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step9.translate(0, 9.5, -38.0);
+            stairGeometries.push(step9);
+            const step10 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step10.translate(0, 10.5, -40.0);
+            stairGeometries.push(step10);
+            const step11 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step11.translate(0, 11.5, -42.0);
+            stairGeometries.push(step11);
+            const step12 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step12.translate(0, 12.5, -44.0);
+            stairGeometries.push(step12);
+            const step13 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step13.translate(0, 13.5, -46.0);
+            stairGeometries.push(step13);
+            const step14 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step14.translate(0, 14.5, -48.0);
+            stairGeometries.push(step14);
+            const step15 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step15.translate(0, 15.5, -50.0);
+            stairGeometries.push(step15);
+            const step16 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step16.translate(0, 16.5, -52.0);
+            stairGeometries.push(step16);
+            const step17 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step17.translate(0, 17.5, -54.0);
+            stairGeometries.push(step17);
+            const step18 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step18.translate(0, 18.5, -56.0);
+            stairGeometries.push(step18);
+            const step19 = new THREE.BoxGeometry(30, 1.0, 2.0);
+            step19.translate(0, 19.5, -58.0);
+            stairGeometries.push(step19);
+
+            const mergedStairs = THREE.BufferGeometryUtils.mergeBufferGeometries(stairGeometries);
+            scene.add(new THREE.Mesh(mergedStairs, matMarble));
+        }
+
+        function createPointLightInstance(x, y, z, color, intensity, distance) {
+            const light = new THREE.PointLight(color, intensity, distance);
+            light.position.set(x, y, z);
+            scene.add(light);
+            flickeringLights.push({
+                light: light,
+                baseIntensity: intensity,
+                speed: 10 + Math.random() * 20
+            });
+        }
+
+        function setupLights() {
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
             scene.add(ambient);
 
-            // Ambient Twitching Point Lights
-            const lightConfigs = [
-                { pos: [0, 18, 40], color: 0xffb866, intensity: 2.0, distance: 80 },
-                { pos: [-70, 34, -50], color: 0xff8844, intensity: 1.5, distance: 60 },
-                { pos: [70, 34, -50], color: 0xff8844, intensity: 1.5, distance: 60 },
-                { pos: [-70, 16, 50], color: 0xffaa55, intensity: 1.2, distance: 50 },
-                { pos: [70, 16, 50], color: 0xffaa55, intensity: 1.2, distance: 50 },
-                { pos: [0, 8, -60], color: 0xff3300, intensity: 2.5, distance: 50 }
-            ];
+            // Perimeter Exterior Lights (All Around Mansion)
+            createPointLightInstance(-210, 15, -210, 0xffaa44, 1.5, 90);
+            createPointLightInstance(-140, 15, -210, 0xffaa44, 1.5, 90);
+            createPointLightInstance(-70, 15, -210, 0xffaa44, 1.5, 90);
+            createPointLightInstance(0, 15, -210, 0xffaa44, 1.5, 90);
+            createPointLightInstance(70, 15, -210, 0xffaa44, 1.5, 90);
+            createPointLightInstance(140, 15, -210, 0xffaa44, 1.5, 90);
+            createPointLightInstance(210, 15, -210, 0xffaa44, 1.5, 90);
 
-            lightConfigs.forEach(cfg => {
-                const light = new THREE.PointLight(cfg.color, cfg.intensity, cfg.distance);
-                light.position.set(cfg.pos[0], cfg.pos[1], cfg.pos[2]);
-                light.castShadow = true;
-                scene.add(light);
+            createPointLightInstance(-210, 15, 210, 0xffaa44, 1.5, 90);
+            createPointLightInstance(-140, 15, 210, 0xffaa44, 1.5, 90);
+            createPointLightInstance(-70, 15, 210, 0xffaa44, 1.5, 90);
+            createPointLightInstance(0, 15, 210, 0xffaa44, 1.5, 90);
+            createPointLightInstance(70, 15, 210, 0xffaa44, 1.5, 90);
+            createPointLightInstance(140, 15, 210, 0xffaa44, 1.5, 90);
+            createPointLightInstance(210, 15, 210, 0xffaa44, 1.5, 90);
 
-                flickeringLights.push({
-                    light: light,
-                    baseIntensity: cfg.intensity,
-                    speed: 10 + Math.random() * 20
-                });
-            });
+            createPointLightInstance(-210, 15, -140, 0xffaa44, 1.5, 90);
+            createPointLightInstance(-210, 15, -70, 0xffaa44, 1.5, 90);
+            createPointLightInstance(-210, 15, 0, 0xffaa44, 1.5, 90);
+            createPointLightInstance(-210, 15, 70, 0xffaa44, 1.5, 90);
+            createPointLightInstance(-210, 15, 140, 0xffaa44, 1.5, 90);
+
+            createPointLightInstance(210, 15, -140, 0xffaa44, 1.5, 90);
+            createPointLightInstance(210, 15, -70, 0xffaa44, 1.5, 90);
+            createPointLightInstance(210, 15, 0, 0xffaa44, 1.5, 90);
+            createPointLightInstance(210, 15, 70, 0xffaa44, 1.5, 90);
+            createPointLightInstance(210, 15, 140, 0xffaa44, 1.5, 90);
+
+            // Ground Floor Lights (10 Rooms)
+            createPointLightInstance(-150, 18, -140, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-150, 18, -70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-150, 18, 0, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-150, 18, 70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-150, 18, 140, 0xffaa44, 1.4, 80);
+
+            createPointLightInstance(-80, 18, -140, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-80, 18, -70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-80, 18, 0, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-80, 18, 70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-80, 18, 140, 0xffaa44, 1.4, 80);
+
+            createPointLightInstance(80, 18, -140, 0xffaa44, 1.4, 80);
+            createPointLightInstance(80, 18, -70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(80, 18, 0, 0xffaa44, 1.4, 80);
+            createPointLightInstance(80, 18, 70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(80, 18, 140, 0xffaa44, 1.4, 80);
+
+            createPointLightInstance(150, 18, -140, 0xffaa44, 1.4, 80);
+            createPointLightInstance(150, 18, -70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(150, 18, 0, 0xffaa44, 1.4, 80);
+            createPointLightInstance(150, 18, 70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(150, 18, 140, 0xffaa44, 1.4, 80);
+
+            // Second Floor Lights (10 Rooms)
+            createPointLightInstance(-150, 38, -140, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-150, 38, -70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-150, 38, 0, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-150, 38, 70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-150, 38, 140, 0xffaa44, 1.4, 80);
+
+            createPointLightInstance(-80, 38, -140, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-80, 38, -70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-80, 38, 0, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-80, 38, 70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(-80, 38, 140, 0xffaa44, 1.4, 80);
+
+            createPointLightInstance(80, 38, -140, 0xffaa44, 1.4, 80);
+            createPointLightInstance(80, 38, -70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(80, 38, 0, 0xffaa44, 1.4, 80);
+            createPointLightInstance(80, 38, 70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(80, 38, 140, 0xffaa44, 1.4, 80);
+
+            createPointLightInstance(150, 38, -140, 0xffaa44, 1.4, 80);
+            createPointLightInstance(150, 38, -70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(150, 38, 0, 0xffaa44, 1.4, 80);
+            createPointLightInstance(150, 38, 70, 0xffaa44, 1.4, 80);
+            createPointLightInstance(150, 38, 140, 0xffaa44, 1.4, 80);
         }
 
         function animateFlicker(time) {
-            flickeringLights.forEach(item => {
-                // Wave noise coupled with random intensity drops
-                const noise = Math.sin(time * item.speed) * Math.cos(time * item.speed * 0.7);
-                const isTwitch = Math.random() > 0.92;
-                
-                if (isTwitch) {
-                    item.light.intensity = item.baseIntensity * (Math.random() * 0.15);
+            for (let i = 0; i < flickeringLights.length; i++) {
+                const item = flickeringLights[i];
+                const noise = Math.sin(time * item.speed);
+                if (Math.random() > 0.94) {
+                    item.light.intensity = item.baseIntensity * 0.1;
                 } else {
-                    item.light.intensity = item.baseIntensity + (noise * 0.4);
+                    item.light.intensity = item.baseIntensity + (noise * 0.3);
                 }
-            });
+            }
         }
 
         function onWindowResize() {
@@ -534,13 +539,10 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // ===================================================================
-        // 7. PHYSICS & RENDER LOOP
-        // ===================================================================
         function animate() {
             requestAnimationFrame(animate);
 
-            const delta = clock.getDelta();
+            const delta = Math.min(clock.getDelta(), 0.1);
             const elapsedTime = clock.getElapsedTime();
 
             animateFlicker(elapsedTime);
@@ -568,28 +570,15 @@
 
                 const playerPos = controls.getObject().position;
 
-                // Multi-floor and stairway collision checking
                 let currentFloorHeight = 0;
 
-                // Check second floor platform collision
-                if (playerPos.y >= 18) {
-                    const inLeftWing = playerPos.x <= -30;
-                    const inRightWing = playerPos.x >= 30;
-                    const inFrontWing = playerPos.z >= 20;
-                    const inBackWing = playerPos.z <= -80;
-
-                    if (inLeftWing || inRightWing || inFrontWing || inBackWing) {
-                        currentFloorHeight = 20;
-                    }
-                }
-
-                // Stair ramp detection
-                if (playerPos.z <= -25 && playerPos.z >= -65 && Math.abs(playerPos.x) <= 40) {
-                    const stairProgress = Math.min(1.0, Math.max(0.0, (-25 - playerPos.z) / 40));
+                if (playerPos.z <= -20 && playerPos.z >= -60 && Math.abs(playerPos.x) <= 20) {
+                    const stairProgress = Math.min(1.0, Math.max(0.0, (-20 - playerPos.z) / 40));
                     currentFloorHeight = stairProgress * 20;
+                } else if (playerPos.y >= 18) {
+                    currentFloorHeight = 20;
                 }
 
-                // Snap height to floor level
                 if (playerPos.y < currentFloorHeight + CONFIG.playerHeight) {
                     velocity.y = 0;
                     playerPos.y = currentFloorHeight + CONFIG.playerHeight;
@@ -600,9 +589,6 @@
             renderer.render(scene, camera);
         }
 
-        // ===================================================================
-        // 8. ENTRY POINT
-        // ===================================================================
         window.onload = () => {
             initEngine();
             animate();
