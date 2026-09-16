@@ -16,7 +16,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #050508;
+            background-color: #030305;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         #canvas-container {
@@ -90,10 +90,14 @@
             near: 0.1,
             far: 1000,
             playerHeight: 2.2,
-            walkSpeed: 7.0,
-            runSpeed: 14.0,
-            jumpForce: 9.0,
-            gravity: 25.0
+            walkSpeed: 10.0,
+            runSpeed: 20.0,
+            jumpForce: 10.0,
+            gravity: 25.0,
+            mansionWidth: 240,
+            mansionLength: 240,
+            wallHeight: 40,
+            floorTwoHeight: 20
         };
 
         let scene, camera, renderer, controls;
@@ -101,10 +105,10 @@
         let moveState = { forward: false, backward: false, left: false, right: false, sprint: false, jump: false };
         let velocity = new THREE.Vector3();
         let canJump = false;
-        let pointLights = [];
+        let flickeringLights = [];
 
         // ===================================================================
-        // 2. PROCEDURAL TEXTURE GENERATOR (100% OPAQUE & HIGH DETAIL)
+        // 2. PROCEDURAL TEXTURE GENERATOR
         // ===================================================================
         const TextureFactory = {
             createParquetWood: function() {
@@ -121,7 +125,6 @@
                         ctx.fillStyle = isHorizontal ? '#3a1f06' : '#2d1804';
                         ctx.fillRect(x, y, plankSize - 2, plankSize - 2);
 
-                        // Fine wood grain detail lines
                         ctx.strokeStyle = 'rgba(10, 5, 0, 0.25)';
                         ctx.lineWidth = 2;
                         const numLines = 8;
@@ -151,17 +154,14 @@
                 canvas.width = 1024; canvas.height = 1024;
                 const ctx = canvas.getContext('2d');
                 
-                // Deep Burgundy Base Color
                 ctx.fillStyle = '#1c0c10';
                 ctx.fillRect(0, 0, 1024, 1024);
 
-                // Damask / Vertical Stripe Pattern
                 ctx.fillStyle = '#2a1218';
                 for (let x = 0; x < 1024; x += 128) {
                     ctx.fillRect(x + 16, 0, 96, 1024);
                 }
 
-                // Decorative Diamond Grid
                 ctx.strokeStyle = '#3d1c24';
                 ctx.lineWidth = 4;
                 for (let x = -512; x < 1536; x += 128) {
@@ -189,10 +189,9 @@
                 ctx.fillStyle = '#eaeaea';
                 ctx.fillRect(0, 0, 512, 512);
 
-                // Veining
                 ctx.strokeStyle = '#9999a0';
                 ctx.lineWidth = 3;
-                for (let i = 0; i < 12; i++) {
+                for (let i = 0; i < 16; i++) {
                     ctx.beginPath();
                     ctx.moveTo(Math.random() * 512, 0);
                     ctx.bezierCurveTo(
@@ -224,7 +223,6 @@
                 ctx.lineWidth = 4;
                 ctx.strokeRect(36, 36, 440, 440);
 
-                // Central Ornament
                 ctx.fillStyle = '#d4af37';
                 ctx.beginPath();
                 ctx.arc(256, 256, 80, 0, Math.PI * 2);
@@ -247,7 +245,7 @@
 
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x020204);
-            scene.fog = new THREE.FogExp2(0x020204, 0.012);
+            scene.fog = new THREE.FogExp2(0x020204, 0.007);
 
             camera = new THREE.PerspectiveCamera(CONFIG.fov, window.innerWidth / window.innerHeight, CONFIG.near, CONFIG.far);
 
@@ -300,48 +298,71 @@
         }
 
         // ===================================================================
-        // 5. MANSION ARCHITECTURE & GEOMETRY BUILDER
+        // 5. EXPANDED ARCHITECTURE, MULTI-FLOOR STRUCTURE & STAIRS
         // ===================================================================
         function buildMansion() {
             const parquetTex = TextureFactory.createParquetWood();
-            parquetTex.repeat.set(12, 12);
+            parquetTex.repeat.set(30, 30);
 
             const wallpaperTex = TextureFactory.createDamaskWallpaper();
-            wallpaperTex.repeat.set(6, 2);
+            wallpaperTex.repeat.set(15, 5);
 
             const marbleTex = TextureFactory.createMarbleTexture();
-            marbleTex.repeat.set(2, 6);
+            marbleTex.repeat.set(4, 16);
 
             const rugTex = TextureFactory.createRugTexture();
 
-            // Completely Opaque Materials
             const materials = {
                 woodFloor: new THREE.MeshStandardMaterial({ map: parquetTex, roughness: 0.25, metalness: 0.1, opacity: 1.0, transparent: false }),
                 walls: new THREE.MeshStandardMaterial({ map: wallpaperTex, roughness: 0.85, metalness: 0.05, opacity: 1.0, transparent: false }),
                 marble: new THREE.MeshStandardMaterial({ map: marbleTex, roughness: 0.1, metalness: 0.1, opacity: 1.0, transparent: false }),
                 gold: new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85, roughness: 0.2, opacity: 1.0, transparent: false }),
                 darkWood: new THREE.MeshStandardMaterial({ color: 0x241408, roughness: 0.4, metalness: 0.1, opacity: 1.0, transparent: false }),
-                fabricRed: new THREE.MeshStandardMaterial({ color: 0x660f14, roughness: 0.9, opacity: 1.0, transparent: false }),
                 rug: new THREE.MeshStandardMaterial({ map: rugTex, roughness: 0.9, opacity: 1.0, transparent: false })
             };
 
             const mansionGroup = new THREE.Group();
 
-            // Ground Floor Plane
-            const floorGeo = new THREE.BoxGeometry(100, 1, 100);
+            // Ground Floor Base (240x240 units)
+            const floorGeo = new THREE.BoxGeometry(240, 1, 240);
             const mainFloor = new THREE.Mesh(floorGeo, materials.woodFloor);
             mainFloor.position.y = -0.5;
             mainFloor.receiveShadow = true;
             mansionGroup.add(mainFloor);
 
-            // Ceiling Plane
-            const ceilingGeo = new THREE.BoxGeometry(100, 1, 100);
+            // Second Floor Mezzanine
+            const secondFloorGroup = new THREE.Group();
+            
+            const leftUpperFloor = new THREE.Mesh(new THREE.BoxGeometry(90, 1, 240), materials.woodFloor);
+            leftUpperFloor.position.set(-75, 20, 0);
+            leftUpperFloor.receiveShadow = true;
+            secondFloorGroup.add(leftUpperFloor);
+
+            const rightUpperFloor = new THREE.Mesh(new THREE.BoxGeometry(90, 1, 240), materials.woodFloor);
+            rightUpperFloor.position.set(75, 20, 0);
+            rightUpperFloor.receiveShadow = true;
+            secondFloorGroup.add(rightUpperFloor);
+
+            const frontUpperFloor = new THREE.Mesh(new THREE.BoxGeometry(60, 1, 100), materials.woodFloor);
+            frontUpperFloor.position.set(0, 20, 70);
+            frontUpperFloor.receiveShadow = true;
+            secondFloorGroup.add(frontUpperFloor);
+
+            const backUpperFloor = new THREE.Mesh(new THREE.BoxGeometry(60, 1, 40), materials.woodFloor);
+            backUpperFloor.position.set(0, 20, -100);
+            backUpperFloor.receiveShadow = true;
+            secondFloorGroup.add(backUpperFloor);
+
+            mansionGroup.add(secondFloorGroup);
+
+            // Roof / Ceiling (40 units tall)
+            const ceilingGeo = new THREE.BoxGeometry(240, 1, 240);
             const ceiling = new THREE.Mesh(ceilingGeo, materials.walls);
-            ceiling.position.y = 18.5;
+            ceiling.position.y = 40;
             ceiling.receiveShadow = true;
             mansionGroup.add(ceiling);
 
-            // Helper: Wall Builder
+            // Wall Helper
             function createWall(w, h, d, x, y, z) {
                 const geo = new THREE.BoxGeometry(w, h, d);
                 const mesh = new THREE.Mesh(geo, materials.walls);
@@ -351,18 +372,20 @@
                 mansionGroup.add(mesh);
             }
 
-            // Outer Perimeter Walls (Fully Opaque Enclosure)
-            createWall(100, 18, 1, 0, 9, -50); // Back
-            createWall(1, 18, 100, -50, 9, 0); // Left
-            createWall(1, 18, 100, 50, 9, 0);  // Right
-            createWall(38, 18, 1, -31, 9, 50); // Front Left
-            createWall(38, 18, 1, 31, 9, 50);  // Front Right
+            // Outer Perimeter Walls (240x240 Enclosure, 40 High)
+            createWall(240, 40, 1, 0, 20, -120); // Back
+            createWall(1, 40, 240, -120, 20, 0); // Left
+            createWall(1, 40, 240, 120, 20, 0);  // Right
+            createWall(90, 40, 1, -75, 20, 120); // Front Left
+            createWall(90, 40, 1, 75, 20, 120);  // Front Right
 
-            // Grand Foyer Marble Pillars
-            const pillarGeo = new THREE.CylinderGeometry(1.5, 1.7, 18, 32);
+            // Grand Marble Columns
+            const pillarGeo = new THREE.CylinderGeometry(2.2, 2.6, 40, 32);
             const pillarPositions = [
-                [-14, 9, -15], [14, 9, -15],
-                [-14, 9, 15],  [14, 9, 15]
+                [-30, 20, -35], [30, 20, -35],
+                [-30, 20, 35],  [30, 20, 35],
+                [-85, 20, -35], [85, 20, -35],
+                [-85, 20, 35],  [85, 20, 35]
             ];
             pillarPositions.forEach(pos => {
                 const pillar = new THREE.Mesh(pillarGeo, materials.marble);
@@ -372,111 +395,137 @@
                 mansionGroup.add(pillar);
             });
 
-            // Interior Room Dividers
-            createWall(1, 18, 40, -22, 9, -20);
-            createWall(1, 18, 40, 22, 9, -20);
-            createWall(30, 18, 1, -35, 9, 0);
-            createWall(30, 18, 1, 35, 9, 0);
+            // GRAND DOUBLE-WINGED STAIRCASE
+            const stairStepCount = 22;
+            const stairWidth = 14;
+            const stepDepth = 1.8;
+            const stepHeight = 20 / stairStepCount;
 
-            // Grand Foyer Rug
-            const rugGeo = new THREE.PlaneGeometry(20, 30);
+            // Central Base Ramp Steps
+            for (let i = 0; i < stairStepCount / 2; i++) {
+                const stepGeo = new THREE.BoxGeometry(stairWidth * 1.6, stepHeight, stepDepth);
+                const step = new THREE.Mesh(stepGeo, materials.marble);
+                step.position.set(0, (i * stepHeight) + (stepHeight / 2), -25 - (i * stepDepth));
+                step.castShadow = true;
+                step.receiveShadow = true;
+                mansionGroup.add(step);
+            }
+
+            // Central Landing Platform
+            const landingGeo = new THREE.BoxGeometry(stairWidth * 2.8, stepHeight, stepDepth * 4);
+            const landing = new THREE.Mesh(landingGeo, materials.marble);
+            landing.position.set(0, 10, -25 - ((stairStepCount / 2) * stepDepth));
+            landing.castShadow = true;
+            landing.receiveShadow = true;
+            mansionGroup.add(landing);
+
+            // Left & Right Branching Upper Stairs
+            for (let i = 0; i < stairStepCount / 2; i++) {
+                const yPos = 10 + (i * stepHeight) + (stepHeight / 2);
+                const zPos = -25 - ((stairStepCount / 2) * stepDepth) - (i * stepDepth);
+
+                // Left Wing
+                const stepLeft = new THREE.Mesh(new THREE.BoxGeometry(stairWidth, stepHeight, stepDepth), materials.marble);
+                stepLeft.position.set(-18 - (i * 0.9), yPos, zPos);
+                stepLeft.castShadow = true;
+                stepLeft.receiveShadow = true;
+                mansionGroup.add(stepLeft);
+
+                // Right Wing
+                const stepRight = new THREE.Mesh(new THREE.BoxGeometry(stairWidth, stepHeight, stepDepth), materials.marble);
+                stepRight.position.set(18 + (i * 0.9), yPos, zPos);
+                stepRight.castShadow = true;
+                stepRight.receiveShadow = true;
+                mansionGroup.add(stepRight);
+            }
+
+            // Rug
+            const rugGeo = new THREE.PlaneGeometry(40, 70);
             const rug = new THREE.Mesh(rugGeo, materials.rug);
             rug.rotation.x = -Math.PI / 2;
-            rug.position.set(0, 0.02, 0);
+            rug.position.set(0, 0.02, 25);
             rug.receiveShadow = true;
             mansionGroup.add(rug);
 
-            // Furnishings: Dining Table
-            const tableTopGeo = new THREE.BoxGeometry(10, 0.5, 22);
-            const tableTop = new THREE.Mesh(tableTopGeo, materials.darkWood);
-            tableTop.position.set(-34, 3, -25);
-            tableTop.castShadow = true;
-            tableTop.receiveShadow = true;
-            mansionGroup.add(tableTop);
-
-            // Table Legs
-            const legGeo = new THREE.BoxGeometry(0.6, 3, 0.6);
-            const legOffsets = [[-4.2, -9.5], [4.2, -9.5], [-4.2, 9.5], [4.2, 9.5]];
-            legOffsets.forEach(off => {
-                const leg = new THREE.Mesh(legGeo, materials.darkWood);
-                leg.position.set(-34 + off[0], 1.5, -25 + off[1]);
-                leg.castShadow = true;
-                mansionGroup.add(leg);
-            });
-
-            // Fireplace Structure
-            const mantelGeo = new THREE.BoxGeometry(12, 5, 3);
-            const mantel = new THREE.Mesh(mantelGeo, materials.marble);
-            mantel.position.set(0, 2.5, -48);
-            mantel.castShadow = true;
-            mansionGroup.add(mantel);
-
-            const hearthGeo = new THREE.BoxGeometry(8, 3, 2);
-            const hearthInnerMat = new THREE.MeshBasicMaterial({ color: 0x110500 });
-            const hearth = new THREE.Mesh(hearthGeo, hearthInnerMat);
-            hearth.position.set(0, 1.5, -47.5);
-            mansionGroup.add(hearth);
-
-            // Chandelier Structure
+            // Central Chandelier Assembly
             const chandelierGroup = new THREE.Group();
-            const ringGeo = new THREE.TorusGeometry(4, 0.15, 12, 32);
-            const ring = new THREE.Mesh(ringGeo, materials.gold);
-            ring.rotation.x = Math.PI / 2;
-            chandelierGroup.add(ring);
+            const ringGeo1 = new THREE.TorusGeometry(10, 0.3, 12, 32);
+            const ring1 = new THREE.Mesh(ringGeo1, materials.gold);
+            ring1.rotation.x = Math.PI / 2;
+            chandelierGroup.add(ring1);
 
-            for (let i = 0; i < 8; i++) {
-                const angle = (i / 8) * Math.PI * 2;
-                const cx = Math.cos(angle) * 4;
-                const cz = Math.sin(angle) * 4;
+            const ringGeo2 = new THREE.TorusGeometry(6, 0.2, 12, 32);
+            const ring2 = new THREE.Mesh(ringGeo2, materials.gold);
+            ring2.rotation.x = Math.PI / 2;
+            ring2.position.y = -2.5;
+            chandelierGroup.add(ring2);
 
-                const candleGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8);
+            for (let i = 0; i < 16; i++) {
+                const angle = (i / 16) * Math.PI * 2;
+                const cx = Math.cos(angle) * 10;
+                const cz = Math.sin(angle) * 10;
+
+                const candleGeo = new THREE.CylinderGeometry(0.15, 0.15, 1.4, 8);
                 const candleMat = new THREE.MeshBasicMaterial({ color: 0xffeedd });
                 const candle = new THREE.Mesh(candleGeo, candleMat);
-                candle.position.set(cx, 0.4, cz);
+                candle.position.set(cx, 0.7, cz);
                 chandelierGroup.add(candle);
 
-                // Chandelier Candle Light
-                const cLight = new THREE.PointLight(0xffaa44, 0.6, 18);
-                cLight.position.set(cx, 1.0, cz);
+                const cLight = new THREE.PointLight(0xffaa44, 0.8, 35);
+                cLight.position.set(cx, 1.8, cz);
                 chandelierGroup.add(cLight);
+                flickeringLights.push({ light: cLight, baseIntensity: 0.8, speed: 12 + Math.random() * 8 });
             }
 
-            chandelierGroup.position.set(0, 14, 0);
+            chandelierGroup.position.set(0, 32, 0);
             mansionGroup.add(chandelierGroup);
 
             scene.add(mansionGroup);
         }
 
         // ===================================================================
-        // 6. LIGHTING ENGINE
+        // 6. DYNAMIC TWITCHING & FLICKERING LIGHTING SYSTEM
         // ===================================================================
         function setupLighting() {
-            // Soft Dark Ambient Base
-            const ambient = new THREE.AmbientLight(0x221a24, 0.45);
+            const ambient = new THREE.AmbientLight(0x221a24, 0.35);
             scene.add(ambient);
 
-            // Main Foyer Light
-            const foyerLight = new THREE.PointLight(0xffb866, 1.8, 50);
-            foyerLight.position.set(0, 13, 0);
-            foyerLight.castShadow = true;
-            foyerLight.shadow.mapSize.width = 2048;
-            foyerLight.shadow.mapSize.height = 2048;
-            scene.add(foyerLight);
+            // Ambient Twitching Point Lights
+            const lightConfigs = [
+                { pos: [0, 18, 40], color: 0xffb866, intensity: 2.0, distance: 80 },
+                { pos: [-70, 34, -50], color: 0xff8844, intensity: 1.5, distance: 60 },
+                { pos: [70, 34, -50], color: 0xff8844, intensity: 1.5, distance: 60 },
+                { pos: [-70, 16, 50], color: 0xffaa55, intensity: 1.2, distance: 50 },
+                { pos: [70, 16, 50], color: 0xffaa55, intensity: 1.2, distance: 50 },
+                { pos: [0, 8, -60], color: 0xff3300, intensity: 2.5, distance: 50 }
+            ];
 
-            // Warm Fireplace Glow
-            const fireLight = new THREE.PointLight(0xff5500, 2.0, 25);
-            fireLight.position.set(0, 2, -46);
-            fireLight.castShadow = true;
-            scene.add(fireLight);
+            lightConfigs.forEach(cfg => {
+                const light = new THREE.PointLight(cfg.color, cfg.intensity, cfg.distance);
+                light.position.set(cfg.pos[0], cfg.pos[1], cfg.pos[2]);
+                light.castShadow = true;
+                scene.add(light);
 
-            // Room Lights
-            const sideLight1 = new THREE.PointLight(0xffaa55, 1.0, 30);
-            sideLight1.position.set(-34, 10, -25);
-            scene.add(sideLight1);
+                flickeringLights.push({
+                    light: light,
+                    baseIntensity: cfg.intensity,
+                    speed: 10 + Math.random() * 20
+                });
+            });
+        }
 
-            const sideLight2 = new THREE.PointLight(0xffaa55, 1.0, 30);
-            sideLight2.position.set(34, 10, -25);
-            scene.add(sideLight2);
+        function animateFlicker(time) {
+            flickeringLights.forEach(item => {
+                // Wave noise coupled with random intensity drops
+                const noise = Math.sin(time * item.speed) * Math.cos(time * item.speed * 0.7);
+                const isTwitch = Math.random() > 0.92;
+                
+                if (isTwitch) {
+                    item.light.intensity = item.baseIntensity * (Math.random() * 0.15);
+                } else {
+                    item.light.intensity = item.baseIntensity + (noise * 0.4);
+                }
+            });
         }
 
         function onWindowResize() {
@@ -486,18 +535,20 @@
         }
 
         // ===================================================================
-        // 7. GAME LOOP & PHYSICS TICK
+        // 7. PHYSICS & RENDER LOOP
         // ===================================================================
         function animate() {
             requestAnimationFrame(animate);
 
             const delta = clock.getDelta();
+            const elapsedTime = clock.getElapsedTime();
+
+            animateFlicker(elapsedTime);
 
             if (controls.isLocked) {
-                // Apply Velocity Damping
                 velocity.x -= velocity.x * 10.0 * delta;
                 velocity.z -= velocity.z * 10.0 * delta;
-                velocity.y -= CONFIG.gravity * delta; // Gravity
+                velocity.y -= CONFIG.gravity * delta;
 
                 const speed = moveState.sprint ? CONFIG.runSpeed : CONFIG.walkSpeed;
 
@@ -511,15 +562,37 @@
                 if (moveState.forward || moveState.backward) velocity.z += moveVector.z * speed * 10.0 * delta;
                 if (moveState.left || moveState.right) velocity.x += moveVector.x * speed * 10.0 * delta;
 
-                // Move Player
                 controls.moveRight(velocity.x * delta);
                 controls.moveForward(velocity.z * delta);
                 controls.getObject().position.y += (velocity.y * delta);
 
-                // Floor Collision Clamp
-                if (controls.getObject().position.y < CONFIG.playerHeight) {
+                const playerPos = controls.getObject().position;
+
+                // Multi-floor and stairway collision checking
+                let currentFloorHeight = 0;
+
+                // Check second floor platform collision
+                if (playerPos.y >= 18) {
+                    const inLeftWing = playerPos.x <= -30;
+                    const inRightWing = playerPos.x >= 30;
+                    const inFrontWing = playerPos.z >= 20;
+                    const inBackWing = playerPos.z <= -80;
+
+                    if (inLeftWing || inRightWing || inFrontWing || inBackWing) {
+                        currentFloorHeight = 20;
+                    }
+                }
+
+                // Stair ramp detection
+                if (playerPos.z <= -25 && playerPos.z >= -65 && Math.abs(playerPos.x) <= 40) {
+                    const stairProgress = Math.min(1.0, Math.max(0.0, (-25 - playerPos.z) / 40));
+                    currentFloorHeight = stairProgress * 20;
+                }
+
+                // Snap height to floor level
+                if (playerPos.y < currentFloorHeight + CONFIG.playerHeight) {
                     velocity.y = 0;
-                    controls.getObject().position.y = CONFIG.playerHeight;
+                    playerPos.y = currentFloorHeight + CONFIG.playerHeight;
                     canJump = true;
                 }
             }
