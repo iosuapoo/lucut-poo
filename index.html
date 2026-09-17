@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Farm Engine - Complete Sandbox Simulator</title>
+    <title>3D Farm Engine - Realistic Crop Geometry Edition</title>
     <style>
         /* ==========================================================================
            1. GLOBAL RESET & CORE CONTAINER STYLING
@@ -506,27 +506,26 @@
 
     <script>
         /* ==========================================================================
-           7. GAME STATE, DATA REGISTRIES & EXPONENTIAL TIMERS
+           7. GAME STATE & EXPONENTIAL TIMERS
            ========================================================================== */
         const gameState = {
             money: 100,
             seeds: { wheat: 5, corn: 1, pumpkin: 0 },
             crops: { wheat: 0, corn: 0, pumpkin: 0 },
             selectedSeed: 'wheat',
-            isDriving: false,
-            dayTime: 0.25 // Day cycle: 0.0 to 1.0
+            isDriving: false
         };
 
         // Seed Quality Tier System: Higher tier seeds cost more, sell for more, and take longer to grow
         const cropData = {
-            wheat: { name: 'Wheat', growTime: 5000, color: 0xeab308, value: 25, scaleY: 1.2, icon: '🌾' },
-            corn: { name: 'Corn', growTime: 15000, color: 0x84cc16, value: 80, scaleY: 2.0, icon: '🌽' },
-            pumpkin: { name: 'Pumpkin', growTime: 35000, color: 0xf97316, value: 240, scaleY: 0.8, icon: '🎃' }
+            wheat: { name: 'Wheat', growTime: 5000, value: 25, icon: '🌾' },
+            corn: { name: 'Corn', growTime: 15000, value: 80, icon: '🌽' },
+            pumpkin: { name: 'Pumpkin', growTime: 35000, value: 240, icon: '🎃' }
         };
 
         let scene, camera, renderer, clock;
         let player, playerBody, vehicle, carBody, wheels = [];
-        let sunLight, ambientLight, skyMesh;
+        let sunLight, ambientLight;
         let keys = {};
         let activeZone = null;
 
@@ -623,12 +622,10 @@
             for (let i = 0; i < 110; i++) {
                 const x = (Math.random() - 0.5) * 420;
                 const z = (Math.random() - 0.5) * 420;
-                // Keep center clear for roads/farms
                 if (Math.abs(x) < 45 && Math.abs(z) < 160) continue;
                 createTree(x, z);
             }
 
-            // Outer Fencing with Colliders
             createFences();
         }
 
@@ -652,7 +649,6 @@
             group.position.set(x, 0, z);
             scene.add(group);
 
-            // Register solid physics trunk collider
             colliders.push({
                 box: new THREE.Box3().setFromCenterAndSize(
                     new THREE.Vector3(x, 2.25, z),
@@ -663,9 +659,8 @@
 
         function createFences() {
             const fenceMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
-            // Fence surrounding main farm
             for (let x = -45; x <= -10; x += 5) {
-                if (x === -25) continue; // Gate opening
+                if (x === -25) continue;
                 const postGeo = new THREE.BoxGeometry(0.4, 2, 0.4);
                 const post = new THREE.Mesh(postGeo, fenceMat);
                 post.position.set(x, 1, -30);
@@ -699,7 +694,124 @@
         }
 
         /* ==========================================================================
-           10. PLAYER & VEHICLE CREATION
+           10. REALISTIC 3D CROP MESH GENERATORS
+           ========================================================================== */
+        function createWheatMesh() {
+            const wheatGroup = new THREE.Group();
+            const stalkMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.6 });
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xca8a04, roughness: 0.5 });
+
+            // Create a dense cluster of realistic wheat stalks
+            for (let i = 0; i < 9; i++) {
+                const singleStalk = new THREE.Group();
+                const offsetX = (Math.random() - 0.5) * 1.8;
+                const offsetZ = (Math.random() - 0.5) * 1.8;
+
+                // Thin stalk
+                const stalkGeo = new THREE.CylinderGeometry(0.03, 0.04, 2.2, 6);
+                const stalk = new THREE.Mesh(stalkGeo, stalkMat);
+                stalk.position.y = 1.1;
+                stalk.castShadow = true;
+                singleStalk.add(stalk);
+
+                // Grain husk seed head
+                const headGeo = new THREE.ConeGeometry(0.12, 0.8, 6);
+                const head = new THREE.Mesh(headGeo, headMat);
+                head.position.y = 2.4;
+                head.castShadow = true;
+                singleStalk.add(head);
+
+                singleStalk.position.set(offsetX, 0, offsetZ);
+                singleStalk.rotation.z = (Math.random() - 0.5) * 0.15;
+                singleStalk.rotation.x = (Math.random() - 0.5) * 0.15;
+                wheatGroup.add(singleStalk);
+            }
+            return wheatGroup;
+        }
+
+        function createCornMesh() {
+            const cornGroup = new THREE.Group();
+            const stalkMat = new THREE.MeshStandardMaterial({ color: 0x4d7c0f, roughness: 0.7 });
+            const huskMat = new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: 0.6 });
+            const earMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3 });
+
+            // Main central stalk
+            const mainStalkGeo = new THREE.CylinderGeometry(0.1, 0.15, 3.8, 8);
+            const mainStalk = new THREE.Mesh(mainStalkGeo, stalkMat);
+            mainStalk.position.y = 1.9;
+            mainStalk.castShadow = true;
+            cornGroup.add(mainStalk);
+
+            // Broad foliage leaves
+            for (let i = 0; i < 5; i++) {
+                const leafGeo = new THREE.BoxGeometry(0.12, 1.4, 0.02);
+                const leaf = new THREE.Mesh(leafGeo, stalkMat);
+                const angle = (i / 5) * Math.PI * 2;
+                leaf.position.set(Math.cos(angle) * 0.3, 1.2 + (i * 0.4), Math.sin(angle) * 0.3);
+                leaf.rotation.y = angle;
+                leaf.rotation.z = Math.PI / 4;
+                leaf.castShadow = true;
+                cornGroup.add(leaf);
+            }
+
+            // Visible corn cobs growing along stalk
+            [1.8, 2.6].forEach((heightPos, idx) => {
+                const cobGroup = new THREE.Group();
+                
+                // Yellow ear
+                const earGeo = new THREE.CylinderGeometry(0.14, 0.12, 0.9, 10);
+                const ear = new THREE.Mesh(earGeo, earMat);
+                ear.castShadow = true;
+                cobGroup.add(ear);
+
+                // Leaf husk wrapping
+                const huskGeo = new THREE.ConeGeometry(0.18, 0.8, 8);
+                const husk = new THREE.Mesh(huskGeo, huskMat);
+                husk.position.y = -0.1;
+                husk.rotation.x = Math.PI;
+                cobGroup.add(husk);
+
+                cobGroup.position.set(idx % 2 === 0 ? 0.22 : -0.22, heightPos, 0);
+                cobGroup.rotation.z = idx % 2 === 0 ? -Math.PI / 6 : Math.PI / 6;
+                cornGroup.add(cobGroup);
+            });
+
+            return cornGroup;
+        }
+
+        function createPumpkinMesh() {
+            const pumpkinGroup = new THREE.Group();
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.5 });
+            const stemMat = new THREE.MeshStandardMaterial({ color: 0x3f6212, roughness: 0.8 });
+
+            // Pumpkin body constructed out of merged spherical lobes for ribbed texture
+            const bodyGroup = new THREE.Group();
+            const lobeCount = 7;
+            for (let i = 0; i < lobeCount; i++) {
+                const lobeGeo = new THREE.SphereGeometry(0.8, 16, 16);
+                lobeGeo.scale(1.0, 0.75, 0.65);
+                const lobe = new THREE.Mesh(lobeGeo, skinMat);
+                const angle = (i / lobeCount) * Math.PI * 2;
+                lobe.position.set(Math.cos(angle) * 0.22, 0.55, Math.sin(angle) * 0.22);
+                lobe.rotation.y = angle;
+                lobe.castShadow = true;
+                bodyGroup.add(lobe);
+            }
+            pumpkinGroup.add(bodyGroup);
+
+            // Curved green stem
+            const stemGeo = new THREE.CylinderGeometry(0.08, 0.12, 0.6, 8);
+            const stem = new THREE.Mesh(stemGeo, stemMat);
+            stem.position.set(0, 1.05, 0);
+            stem.rotation.z = Math.PI / 8;
+            stem.castShadow = true;
+            pumpkinGroup.add(stem);
+
+            return pumpkinGroup;
+        }
+
+        /* ==========================================================================
+           11. PLAYER & VEHICLE CREATION
            ========================================================================== */
         function createPlayer() {
             player = new THREE.Group();
@@ -782,7 +894,7 @@
         }
 
         /* ==========================================================================
-           11. STRUCTURES & LANDMARKS
+           12. STRUCTURES & LANDMARKS
            ========================================================================== */
         function createFarmPlots() {
             const plotGridX = 3;
@@ -852,7 +964,6 @@
                 radius: 10
             };
 
-            // Building collision box
             colliders.push({
                 box: new THREE.Box3().setFromCenterAndSize(
                     new THREE.Vector3(posX, 4.5, posZ),
@@ -914,7 +1025,7 @@
         }
 
         /* ==========================================================================
-           12. REAL-TIME HARD COLLISION ENGINE (PHYSICAL OBSTACLE PREVENTER)
+           13. REAL-TIME HARD COLLISION ENGINE (PHYSICAL OBSTACLE PREVENTER)
            ========================================================================== */
         function checkCollisions(newPosition, radius) {
             const entityBox = new THREE.Box3().setFromCenterAndSize(
@@ -924,11 +1035,10 @@
 
             for (let i = 0; i < colliders.length; i++) {
                 if (entityBox.intersectsBox(colliders[i].box)) {
-                    return true; // Hard hit - block motion
+                    return true;
                 }
             }
 
-            // Also check player vs vehicle collision when walking
             if (!gameState.isDriving) {
                 const vehicleBox = new THREE.Box3().setFromCenterAndSize(
                     vehicle.position,
@@ -943,7 +1053,7 @@
         }
 
         /* ==========================================================================
-           13. CUSTOMERS AI & ORDER MANAGEMENT
+           14. CUSTOMERS AI & ORDER MANAGEMENT
            ========================================================================== */
         function spawnCustomer() {
             if (customers.length >= 4) return;
@@ -1031,7 +1141,7 @@
         }
 
         /* ==========================================================================
-           14. MAIN ENGINE LOOP & MOVEMENT CONTROLS (STANDARD W-FORWARD, S-BACKWARD)
+           15. MAIN ENGINE LOOP & MOVEMENT CONTROLS (STANDARD W-FORWARD, S-BACKWARD)
            ========================================================================== */
         function animate() {
             requestAnimationFrame(animate);
@@ -1075,7 +1185,6 @@
                 player.rotation.y = p.angle;
             }
 
-            // Physical obstruction check
             if (!checkCollisions(nextPos, p.radius)) {
                 player.position.copy(nextPos);
             }
@@ -1103,11 +1212,10 @@
             nextVehiclePos.x -= Math.sin(v.angle) * v.speed;
             nextVehiclePos.z -= Math.cos(v.angle) * v.speed;
 
-            // Physical obstruction check for vehicle
             if (!checkCollisions(nextVehiclePos, v.radius)) {
                 vehicle.position.copy(nextVehiclePos);
             } else {
-                v.speed = 0; // Hard crash impact stop
+                v.speed = 0;
             }
 
             vehicle.rotation.y = v.angle;
@@ -1130,20 +1238,17 @@
         }
 
         /* ==========================================================================
-           15. REAL-TIME MINIMAP RENDERER
+           16. REAL-TIME MINIMAP RENDERER
            ========================================================================== */
         function renderMinimap() {
             minimapCtx.clearRect(0, 0, 160, 160);
 
-            // Center coordinates
             const cx = 80, cy = 80;
             const scale = 0.8;
 
-            // Draw Road
             minimapCtx.fillStyle = "#374151";
             minimapCtx.fillRect(cx - 8, 0, 16, 160);
 
-            // Draw Farm Plots
             minimapCtx.fillStyle = "#78350f";
             farmPlots.forEach(p => {
                 const mx = cx + (p.group.position.x * scale);
@@ -1151,7 +1256,6 @@
                 minimapCtx.fillRect(mx - 4, mz - 4, 8, 8);
             });
 
-            // Draw Player Pin
             const px = cx + (player.position.x * scale);
             const pz = cy + (player.position.z * scale);
             minimapCtx.fillStyle = "#38bdf8";
@@ -1159,7 +1263,6 @@
             minimapCtx.arc(px, pz, 5, 0, Math.PI * 2);
             minimapCtx.fill();
 
-            // Draw Vehicle Pin
             const vx = cx + (vehicle.position.x * scale);
             const vz = cy + (vehicle.position.z * scale);
             minimapCtx.fillStyle = "#ef4444";
@@ -1167,7 +1270,7 @@
         }
 
         /* ==========================================================================
-           16. CROP SIMULATION ENGINE
+           17. CROP SIMULATION & DYNAMIC GEOMETRY DISPATCH ENGINE
            ========================================================================== */
         function updateCrops() {
             const now = Date.now();
@@ -1180,7 +1283,7 @@
 
                     if (plot.cropMesh) {
                         const currentScale = 0.1 + (progress * 0.9);
-                        plot.cropMesh.scale.set(currentScale, currentScale * cData.scaleY, currentScale);
+                        plot.cropMesh.scale.set(currentScale, currentScale, currentScale);
                     }
 
                     if (progress >= 1.0) {
@@ -1253,7 +1356,7 @@
         }
 
         /* ==========================================================================
-           17. KEYBOARD BINDINGS & ACTION DISPATCH
+           18. KEYBOARD BINDINGS & ACTION DISPATCH
            ========================================================================== */
         function onKeyDown(e) {
             const key = e.key.toLowerCase();
@@ -1321,14 +1424,16 @@
             plot.cropType = seedType;
             plot.plantTime = Date.now();
 
-            const cData = cropData[seedType];
-            const cropGeo = new THREE.ConeGeometry(0.95, 1.6, 8);
-            const cropMat = new THREE.MeshStandardMaterial({ color: cData.color });
-            const mesh = new THREE.Mesh(cropGeo, cropMat);
-            mesh.position.set(0, 0.8, 0);
-            mesh.scale.set(0.1, 0.1, 0.1);
-            mesh.castShadow = true;
+            let mesh;
+            if (seedType === 'wheat') {
+                mesh = createWheatMesh();
+            } else if (seedType === 'corn') {
+                mesh = createCornMesh();
+            } else if (seedType === 'pumpkin') {
+                mesh = createPumpkinMesh();
+            }
 
+            mesh.scale.set(0.1, 0.1, 0.1);
             plot.group.add(mesh);
             plot.cropMesh = mesh;
 
