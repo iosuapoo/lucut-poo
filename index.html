@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Furnished Grand Mansion 3D</title>
+    <title>Furnished Grand Mansion 3D with Monster Chase</title>
     <style>
         * {
             box-sizing: border-box;
@@ -78,6 +78,38 @@
             border-radius: 20px;
             border: 1px solid rgba(255,215,0,0.4);
         }
+        #jumpscare-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(150, 0, 0, 0.9);
+            color: #ffffff;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            font-family: sans-serif;
+            text-align: center;
+        }
+        #jumpscare-overlay h2 {
+            font-size: 4rem;
+            color: #ff2222;
+            text-shadow: 0 0 20px #000;
+            margin-bottom: 20px;
+        }
+        #jumpscare-overlay button {
+            padding: 12px 28px;
+            font-size: 1.2rem;
+            background: #ff2222;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
@@ -88,18 +120,22 @@
     <div id="interaction-prompt">Press E to Open/Close</div>
     <div id="ui-layer">
         <div class="hud-card">
-            <h1>Cozy Furnished Mansion</h1>
+            <h1>Cozy Mansion — Escape The Entity</h1>
             <p><strong>WASD / Arrows</strong> — Move</p>
-            <p><strong>Shift</strong> — Sprint</p>
+            <p><strong>Shift</strong> — Sprint (Required to match monster speed)</p>
             <p><strong>Space</strong> — Jump</p>
             <p><strong>E</strong> — Open / Close Drawers</p>
             <p><strong>Click Screen</strong> — Lock Mouse & Look Around</p>
         </div>
     </div>
+    <div id="jumpscare-overlay">
+        <h2>YOU CAUGHT!</h2>
+        <p style="font-size: 1.2rem; margin-bottom: 20px;">The entity reached you...</p>
+        <button onclick="restartGame()">Try Again</button>
+    </div>
     <div id="canvas-container"></div>
 
     <script>
-        // Player height is set to 2.1m (~1.5x height of the 1.4m high drawers)
         const CONFIG = {
             fov: 75,
             near: 0.1,
@@ -108,6 +144,8 @@
             playerRadius: 0.6,
             walkSpeed: 10.0,
             runSpeed: 18.0,
+            monsterWalkSpeed: 13.5, // Faster than player walk speed (10.0)
+            monsterRunSpeed: 18.0,  // Equal to player run speed (18.0)
             jumpForce: 9.0,
             gravity: 24.0
         };
@@ -136,6 +174,74 @@
         let interactiveObjects = [];
         let raycaster = new THREE.Raycaster();
         let currentTarget = null;
+
+        // Monster entity
+        let monsterSprite;
+        let monsterPosition = new THREE.Vector3(40, 2.1, 40);
+        let gameOver = false;
+
+        // Generate Monster Canvas Texture matching the screenshot face shape
+        function createMonsterTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            // Background transparent
+            ctx.clearRect(0, 0, 512, 512);
+
+            // Head outline (Oval Face shape)
+            ctx.fillStyle = '#2f2826';
+            ctx.beginPath();
+            ctx.ellipse(256, 256, 180, 230, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Forehead / Top Shadowing
+            const gradHead = ctx.createLinearGradient(256, 30, 256, 480);
+            gradHead.addColorStop(0, '#594d48');
+            gradHead.addColorStop(0.5, '#2f2826');
+            gradHead.addColorStop(1, '#1a1412');
+            ctx.fillStyle = gradHead;
+            ctx.beginPath();
+            ctx.ellipse(256, 256, 175, 225, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Wide Eyes
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.ellipse(180, 160, 35, 20, 0, 0, Math.PI * 2);
+            ctx.ellipse(332, 160, 35, 20, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Dark Pupils looking right at player
+            ctx.fillStyle = '#0a0a0a';
+            ctx.beginPath();
+            ctx.arc(180, 160, 12, 0, Math.PI * 2);
+            ctx.arc(332, 160, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Huge gaping oval mouth (matching screenshot)
+            ctx.fillStyle = '#5c1e21'; // Lip tone
+            ctx.beginPath();
+            ctx.ellipse(256, 330, 100, 130, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Inner gaping void
+            ctx.fillStyle = '#050202';
+            ctx.beginPath();
+            ctx.ellipse(256, 330, 65, 95, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Lip contours & detail
+            ctx.strokeStyle = '#3d1214';
+            ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.ellipse(256, 330, 85, 115, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            const tex = new THREE.CanvasTexture(canvas);
+            return tex;
+        }
 
         const TextureFactory = {
             createSolidWood: function() {
@@ -192,10 +298,13 @@
             container.appendChild(renderer.domElement);
 
             controls = new THREE.PointerLockControls(camera, document.body);
-            document.addEventListener('click', () => controls.lock());
+            document.addEventListener('click', () => {
+                if(!gameOver) controls.lock();
+            });
 
             setupInputs();
             buildOptimizedMansion();
+            setupMonster();
             setupLights();
             window.addEventListener('resize', onWindowResize);
         }
@@ -229,6 +338,15 @@
             });
         }
 
+        function setupMonster() {
+            const monsterTex = createMonsterTexture();
+            const mat = new THREE.SpriteMaterial({ map: monsterTex, transparent: true });
+            monsterSprite = new THREE.Sprite(mat);
+            monsterSprite.scale.set(4.5, 5.5, 1);
+            monsterSprite.position.copy(monsterPosition);
+            scene.add(monsterSprite);
+        }
+
         function registerCollider(minX, maxX, minY, maxY, minZ, maxZ) {
             colliders.push(new THREE.Box3(
                 new THREE.Vector3(minX, minY, minZ),
@@ -257,7 +375,6 @@
             const staticFurnitureGeometries = [];
             const accentGeometries = [];
 
-            // Mansion bounds scaled down for smaller rooms (~20x20 per room)
             const mapSize = 160;
             const wallHeight = 12;
 
@@ -293,17 +410,14 @@
 
             xCoords.forEach(x => {
                 zCoords.forEach(z => {
-                    // Ground floor inner walls with smaller dimensions
                     addWall(24, wallHeight, 1.5, x, wallHeight/2, z);
                     addWall(1.5, wallHeight, 24, x - 12, wallHeight/2, z);
                     
-                    // Upper floor inner walls
                     addWall(24, wallHeight, 1.5, x, wallHeight + wallHeight/2, z);
                     addWall(1.5, wallHeight, 24, x - 12, wallHeight + wallHeight/2, z);
                 });
             });
 
-            // Compact Table
             function addTable(x, y, z, width, depth, height) {
                 const top = new THREE.BoxGeometry(width, 0.2, depth);
                 top.translate(x, y + height, z);
@@ -327,7 +441,6 @@
                 registerCollider(x - width/2, x + width/2, y, y + height + 0.2, z - depth/2, z + depth/2);
             }
 
-            // Interactive Dresser with Drawers (Height: 1.4m so 2.1m player is 1.5x taller)
             function addInteractiveDresser(x, y, z, width, depth, height, drawersCount) {
                 const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), matDressers);
                 bodyMesh.position.set(x, y + height/2, z);
@@ -364,7 +477,6 @@
                 }
             }
 
-            // Compact Potted Plant
             function addPottedPlant(x, y, z) {
                 const pot = new THREE.CylinderGeometry(0.6, 0.4, 1.2, 8);
                 pot.translate(x, y + 0.6, z);
@@ -377,7 +489,6 @@
                 registerCollider(x - 0.7, x + 0.7, y, y + 2.2, z - 0.7, z + 0.7);
             }
 
-            // Populate all rooms
             const roomCenters = [];
             xCoords.forEach(x => {
                 zCoords.forEach(z => {
@@ -392,7 +503,6 @@
                 addPottedPlant(room.x - 5, room.y, room.z - 5);
             });
 
-            // Merge static geometries
             const mergedWalls = THREE.BufferGeometryUtils.mergeBufferGeometries(wallGeometries);
             scene.add(new THREE.Mesh(mergedWalls, matWall));
 
@@ -405,7 +515,6 @@
             const mergedAccents = THREE.BufferGeometryUtils.mergeBufferGeometries(accentGeometries);
             scene.add(new THREE.Mesh(mergedAccents, matPlantLeaves));
 
-            // Staircase scaled to smaller floor heights
             const stairGeometries = [];
             const stepsCount = 12;
             for (let i = 0; i < stepsCount; i++) {
@@ -455,8 +564,47 @@
             }
         }
 
+        function updateMonsterAI(delta) {
+            if (gameOver || !controls.isLocked) return;
+
+            const playerPos = controls.getObject().position;
+            const dir = new THREE.Vector3().subVectors(playerPos, monsterSprite.position);
+            dir.y = 0; // Float horizontally on current floor level
+
+            const dist = dir.length();
+            dir.normalize();
+
+            // Monster speed logic:
+            // Faster than player walk speed (10.0) -> Monster walk speed (13.5)
+            // Same speed as player run speed (18.0) -> Monster run speed (18.0)
+            const isPlayerSprinting = moveState.sprint && (moveState.forward || moveState.backward || moveState.left || moveState.right);
+            const monsterSpeed = isPlayerSprinting ? CONFIG.monsterRunSpeed : CONFIG.monsterWalkSpeed;
+
+            monsterSprite.position.addScaledVector(dir, monsterSpeed * delta);
+            monsterSprite.position.y = playerPos.y - 0.2; // Stay near eye height
+
+            // Jumpscare trigger distance
+            if (dist < 1.8) {
+                triggerJumpscare();
+            }
+        }
+
+        function triggerJumpscare() {
+            gameOver = true;
+            controls.unlock();
+            document.getElementById('jumpscare-overlay').style.display = 'flex';
+        }
+
+        function restartGame() {
+            gameOver = false;
+            document.getElementById('jumpscare-overlay').style.display = 'none';
+            controls.getObject().position.set(0, CONFIG.playerHeight, 0);
+            monsterSprite.position.set(40, CONFIG.playerHeight, 40);
+            controls.lock();
+        }
+
         function checkInteractions() {
-            if (!controls.isLocked) return;
+            if (!controls.isLocked || gameOver) return;
 
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
             const intersects = raycaster.intersectObjects(interactiveObjects);
@@ -474,7 +622,7 @@
         }
 
         function interactWithObject() {
-            if (currentTarget) {
+            if (currentTarget && !gameOver) {
                 const group = currentTarget;
                 group.userData.isOpen = !group.userData.isOpen;
                 
@@ -525,8 +673,9 @@
 
             animateFlicker(elapsedTime);
             checkInteractions();
+            updateMonsterAI(delta);
 
-            if (controls.isLocked) {
+            if (controls.isLocked && !gameOver) {
                 velocity.x -= velocity.x * 10.0 * delta;
                 velocity.z -= velocity.z * 10.0 * delta;
                 velocity.y -= CONFIG.gravity * delta;
@@ -560,7 +709,6 @@
 
                 let currentFloorHeight = 0;
 
-                // Stair progression logic
                 if (playerPos.z <= -10 && playerPos.z >= -28 && Math.abs(playerPos.x) <= 10) {
                     const stairProgress = Math.min(1.0, Math.max(0.0, (-10 - playerPos.z) / 18));
                     currentFloorHeight = stairProgress * 12;
