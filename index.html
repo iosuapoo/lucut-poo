@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Furnished Mansion 3D — Escape House Game</title>
+    <title>Furnished Mansion 3D — Flashlight Hunt</title>
     <style>
         * {
             box-sizing: border-box;
@@ -74,6 +74,22 @@
         .badge-red { background: #ff2222; }
         .badge-yellow { background: #ffd700; color: #000; text-shadow: none; }
         .badge-green { background: #22cc44; }
+
+        #torch-status {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #22cc44;
+        }
+        #torch-status.warning {
+            color: #ff2222;
+            animation: blink 0.8s infinite alternate;
+        }
+
+        @keyframes blink {
+            from { opacity: 1.0; }
+            to { opacity: 0.2; }
+        }
 
         #crosshair {
             position: absolute;
@@ -159,10 +175,11 @@
     
     <div id="ui-layer">
         <div class="hud-card">
-            <h1>Mansion Escape — 4 Keys Hunt</h1>
+            <h1>Mansion Escape — Torch Mode</h1>
             <p><strong>WASD / Arrows</strong> — Move</p>
             <p><strong>Shift</strong> — Sprint | <strong>Space</strong> — Jump</p>
             <p><strong>E</strong> — Open Drawers / Pick Up Key / Unlock Door</p>
+            <div id="torch-status">TORCH STATUS: ONLINE (60s)</div>
             <div id="key-tracker">
                 Keys Found: 
                 <span id="badge-blue" class="key-badge badge-blue">Blue</span>
@@ -196,7 +213,9 @@
             monsterRunSpeed: 15.0,
             monsterRadius: 1.2,
             jumpForce: 9.0,
-            gravity: 24.0
+            gravity: 24.0,
+            torchOnDuration: 60.0,  // Flashlight ON time (seconds)
+            torchOffDuration: 10.0  // Flashlight OFF blackout time (seconds)
         };
 
         // ==========================================
@@ -219,7 +238,12 @@
 
         let velocity = new THREE.Vector3();
         let canJump = false;
-        let flickeringLights = [];
+
+        // Flashlight Light Source
+        let flashlightLight;
+        let flashlightTarget;
+        let flashlightTimer = 0.0;
+        let isFlashlightActive = true;
 
         // ==========================================
         // INTERACTIVE & COLLISION ARRAYS
@@ -285,15 +309,6 @@
                 tex.wrapS = THREE.RepeatWrapping;
                 tex.wrapT = THREE.RepeatWrapping;
                 return tex;
-            },
-            createSolidMarble: function() {
-                const canvas = document.createElement('canvas');
-                canvas.width = 64;
-                canvas.height = 64;
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#dcdcdc';
-                ctx.fillRect(0, 0, 64, 64);
-                return new THREE.CanvasTexture(canvas);
             }
         };
 
@@ -372,8 +387,8 @@
         function initEngine() {
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x020204);
-            scene.fog = new THREE.FogExp2(0x020204, 0.012);
+            scene.background = new THREE.Color(0x000000);
+            scene.fog = new THREE.FogExp2(0x000000, 0.025);
             
             camera = new THREE.PerspectiveCamera(CONFIG.fov, window.innerWidth / window.innerHeight, CONFIG.near, CONFIG.far);
             renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
@@ -387,11 +402,12 @@
             });
 
             setupInputs();
+            setupFlashlight();
             buildMansion();
             setupDownstairsExitDoor();
             spawnRandomKeys();
             setupMonster();
-            setupLights();
+            setupAmbientLights();
             window.addEventListener('resize', onWindowResize);
         }
 
@@ -419,6 +435,54 @@
                     case 'ShiftLeft': case 'ShiftRight': moveState.sprint = false; break;
                 }
             });
+        }
+
+        function setupFlashlight() {
+            // Flashlight Spotlight attached to player camera
+            flashlightLight = new THREE.SpotLight(0xfff5ea, 3.5, 60, Math.PI / 6, 0.4, 1.0);
+            flashlightTarget = new THREE.Object3D();
+
+            camera.add(flashlightLight);
+            camera.add(flashlightTarget);
+
+            flashlightLight.position.set(0.3, -0.2, 0); // Position torch near bottom-right of view
+            flashlightTarget.position.set(0, 0, -5);    // Aim forward
+
+            flashlightLight.target = flashlightTarget;
+            scene.add(camera);
+        }
+
+        function updateFlashlightTimer(delta) {
+            if (gameOver || !controls.isLocked) return;
+
+            flashlightTimer += delta;
+            const torchStatusEl = document.getElementById('torch-status');
+
+            if (isFlashlightActive) {
+                const remainingOn = Math.max(0, Math.ceil(CONFIG.torchOnDuration - flashlightTimer));
+                torchStatusEl.innerText = `TORCH STATUS: ONLINE (${remainingOn}s)`;
+                torchStatusEl.classList.remove('warning');
+
+                if (flashlightTimer >= CONFIG.torchOnDuration) {
+                    isFlashlightActive = false;
+                    flashlightTimer = 0.0;
+                    flashlightLight.intensity = 0.0; // Cut off light
+                } else {
+                    flashlightLight.intensity = 3.5;
+                }
+            } else {
+                const remainingOff = Math.max(0, Math.ceil(CONFIG.torchOffDuration - flashlightTimer));
+                torchStatusEl.innerText = `TORCH STATUS: FAILURE (${remainingOff}s)`;
+                torchStatusEl.classList.add('warning');
+
+                if (flashlightTimer >= CONFIG.torchOffDuration) {
+                    isFlashlightActive = true;
+                    flashlightTimer = 0.0;
+                    flashlightLight.intensity = 3.5; // Turn back on
+                } else {
+                    flashlightLight.intensity = 0.0;
+                }
+            }
         }
 
         function addCollisionBox(x, y, z, w, h, d) {
@@ -588,18 +652,9 @@
             scene.add(monsterSprite);
         }
 
-        function setupLights() {
-            scene.add(new THREE.AmbientLight(0xffffff, 0.45));
-            const xCoords = [-60, -20, 20, 60];
-            const zCoords = [-55, -25, 5, 35, 65];
-
-            xCoords.forEach(x => {
-                zCoords.forEach(z => {
-                    const l1 = new THREE.PointLight(0xffaa44, 1.2, 40);
-                    l1.position.set(x, 10, z); scene.add(l1);
-                    flickeringLights.push({ light: l1, baseIntensity: 1.2, speed: 12 });
-                });
-            });
+        function setupAmbientLights() {
+            // Very low ambient light to ensure complete dark environment when torch is off
+            scene.add(new THREE.AmbientLight(0xffffff, 0.05));
         }
 
         // ==========================================
@@ -826,6 +881,7 @@
 
             const delta = Math.min(clock.getDelta(), 0.1);
             checkInteractions();
+            updateFlashlightTimer(delta);
             updateMonsterAI(delta);
 
             if (controls.isLocked && !gameOver) {
