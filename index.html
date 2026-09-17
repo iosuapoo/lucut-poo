@@ -3,14 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Tractor & Economy Simulator</title>
+    <title>Ultimate Farm & Tractor Logistics Simulator</title>
     <style>
         :root {
             --bg-color: #1a252f;
             --panel-bg: #2c3e50;
             --accent-green: #27ae60;
             --accent-orange: #e67e22;
+            --accent-gold: #f1c40f;
             --text-light: #ecf0f1;
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
@@ -26,7 +31,9 @@
 
         h1 {
             margin: 0 0 15px 0;
-            font-size: 24px;
+            font-size: 26px;
+            color: var(--accent-gold);
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
         }
 
         #game-layout {
@@ -36,6 +43,8 @@
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            max-width: 1100px;
+            width: 100%;
         }
 
         #canvas-wrapper {
@@ -50,12 +59,13 @@
         }
 
         #sidebar {
-            width: 320px;
+            width: 360px;
             display: flex;
             flex-direction: column;
             gap: 15px;
-            max-height: 500px;
+            max-height: 520px;
             overflow-y: auto;
+            padding-right: 5px;
         }
 
         .card {
@@ -65,17 +75,45 @@
             border-left: 5px solid var(--accent-orange);
         }
 
+        .card.gold-card {
+            border-left-color: var(--accent-gold);
+        }
+
         .card h3 {
             margin: 0 0 10px 0;
             color: #f39c12;
             font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .stat-group {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
             font-size: 14px;
+        }
+
+        .grid-store {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .store-item {
+            background: #2c3e50;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .store-item.top-tier {
+            border: 1px solid var(--accent-gold);
+            background: #3e2723;
         }
 
         .npc-card {
@@ -95,7 +133,7 @@
         }
 
         button {
-            padding: 8px 12px;
+            padding: 6px 10px;
             background-color: var(--accent-green);
             color: white;
             border: none;
@@ -126,47 +164,65 @@
             padding: 5px;
         }
 
-        .controls-hint {
+        .audio-btn {
+            background-color: #e74c3c;
             font-size: 12px;
-            color: #bdc3c7;
-            margin-top: 10px;
+            padding: 4px 8px;
+        }
+
+        .audio-btn.enabled {
+            background-color: #27ae60;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a252f;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #34495e;
+            border-radius: 3px;
         }
     </style>
 </head>
 <body>
 
-    <h1>Farm Logistics & Tractor Engine</h1>
+    <h1>Farm Logistics & Crop Empire</h1>
 
     <div id="game-layout">
         <div id="canvas-wrapper">
-            <canvas id="gameCanvas" width="700" height="500"></canvas>
+            <canvas id="gameCanvas" width="650" height="500"></canvas>
         </div>
 
         <div id="sidebar">
-            <div class="card">
-                <h3>Farm Statistics</h3>
-                <div class="stat-group"><span>Money:</span> <span id="money-val">$100</span></div>
+            <div class="card gold-card">
+                <h3>
+                    Farm Treasury
+                    <button id="audio-toggle" class="audio-btn" onclick="toggleAudio()">Sound: OFF</button>
+                </h3>
+                <div class="stat-group"><span>Coins:</span> <strong id="money-val" style="color: var(--accent-gold); font-size: 16px;">100</strong></div>
                 <div class="stat-group"><span>Reputation:</span> <span id="rep-val">0</span></div>
             </div>
 
             <div class="card">
                 <h3>Vehicle Config</h3>
-                <div class="stat-group"><span>Type:</span> <span id="vehicle-type">Utility Tractor</span></div>
-                <div class="stat-group"><span>Speed:</span> <span id="vehicle-speed">3.0</span></div>
+                <div class="stat-group"><span>Model:</span> <span id="vehicle-type">Utility Tractor</span></div>
+                <div class="stat-group"><span>Top Speed:</span> <span id="vehicle-speed">3.2</span></div>
                 <div class="vehicle-selector">
                     <button class="vehicle-btn" onclick="setVehicle('utility')">Utility</button>
                     <button class="vehicle-btn" onclick="setVehicle('heavy')">Heavy Duty</button>
-                    <button class="vehicle-btn" onclick="setVehicle('vintage')">Vintage</button>
+                    <button class="vehicle-btn" onclick="setVehicle('harvest')">Harvester</button>
                 </div>
             </div>
 
             <div class="card">
-                <h3>Inventory</h3>
-                <div id="inventory-list"></div>
+                <h3>Produce Market (Buy & Inventory)</h3>
+                <div id="store-grid" class="grid-store"></div>
             </div>
 
             <div class="card">
-                <h3>Town Requests</h3>
+                <h3>Town Orders</h3>
                 <div id="npc-list"></div>
             </div>
         </div>
@@ -174,20 +230,80 @@
 
     <script>
         // =================================================================
-        // DATA STRUCTURES & CONFIGURATION
+        // AUDIO ENGINE (WEB AUDIO API - NO EXTERNAL FILES NEEDED)
         // =================================================================
-        const ITEMS = {
-            WHEAT: { name: 'Wheat', color: '#f1c40f', basePrice: 15 },
-            CORN: { name: 'Corn', color: '#e67e22', basePrice: 20 },
-            FERTILIZER: { name: 'Fertilizer', color: '#8e44ad', basePrice: 35 },
-            TOOLS: { name: 'Tools', color: '#7f8c8d', basePrice: 50 },
-            FUEL: { name: 'Fuel', color: '#e74c3c', basePrice: 40 }
+        let audioCtx = null;
+        let audioEnabled = false;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function toggleAudio() {
+            initAudio();
+            audioEnabled = !audioEnabled;
+            const btn = document.getElementById('audio-toggle');
+            if (audioEnabled) {
+                btn.innerText = "Sound: ON";
+                btn.classList.add('enabled');
+                playTone(440, 'sine', 0.1, 0.1);
+            } else {
+                btn.innerText = "Sound: OFF";
+                btn.classList.remove('enabled');
+            }
+        }
+
+        function playTone(freq, type, duration, vol = 0.1) {
+            if (!audioEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        function playEngineSound() {
+            if (Math.random() < 0.15) {
+                playTone(60 + Math.random() * 20, 'sawtooth', 0.05, 0.03);
+            }
+        }
+
+        function playTradeSound() {
+            if (!audioEnabled) return;
+            playTone(523.25, 'sine', 0.1, 0.15); // C5
+            setTimeout(() => playTone(659.25, 'sine', 0.1, 0.15), 80); // E5
+            setTimeout(() => playTone(783.99, 'sine', 0.2, 0.2), 160); // G5
+        }
+
+        // =================================================================
+        // DATA STRUCTURES & CROPS CONFIGURATION
+        // =================================================================
+        const CROPS = {
+            CARROT: { name: 'Carrot', icon: '🥕', cost: 10, sellReward: 25 },
+            POTATO: { name: 'Potato', icon: '🥔', cost: 15, sellReward: 35 },
+            TOMATO: { name: 'Tomato', icon: '🍅', cost: 25, sellReward: 55 },
+            CORN: { name: 'Corn', icon: '🌽', cost: 40, sellReward: 90 },
+            BROCCOLI: { name: 'Broccoli', icon: '🥦', cost: 75, sellReward: 160 },
+            WATERMELON: { name: 'Watermelon', icon: '🍉', cost: 150, sellReward: 320 },
+            PUMPKIN: { name: 'Pumpkin', icon: '🎃', cost: 300, sellReward: 650 },
+            GRAPES: { name: 'Grapes', icon: '🍇', cost: 600, sellReward: 1300 },
+            DRAGONFRUIT: { name: 'Dragonfruit', icon: '🐉', cost: 1500, sellReward: 3200 },
+            GOLDEN_APPLE: { name: 'Golden Apple', icon: '🍎', cost: 5000, sellReward: 12000, topTier: true }
         };
 
         const VEHICLES = {
             utility: { name: 'Utility Tractor', speed: 3.2, color: '#c0392b', rearWheelR: 16, frontWheelR: 8, bodyLength: 36 },
-            heavy: { name: 'Heavy Duty', speed: 2.4, color: '#27ae60', rearWheelR: 22, frontWheelR: 11, bodyLength: 46 },
-            vintage: { name: 'Vintage Row-Crop', speed: 3.8, color: '#d35400', rearWheelR: 18, frontWheelR: 6, bodyLength: 32 }
+            heavy: { name: 'Heavy Duty', speed: 2.5, color: '#27ae60', rearWheelR: 22, frontWheelR: 11, bodyLength: 46 },
+            harvest: { name: 'Combine Harvester', speed: 4.0, color: '#f39c12', rearWheelR: 18, frontWheelR: 10, bodyLength: 40 }
         };
 
         const state = {
@@ -195,37 +311,48 @@
             reputation: 0,
             currentVehicle: 'utility',
             inventory: {
-                Wheat: 5,
-                Corn: 3,
-                Fertilizer: 2,
-                Tools: 1,
-                Fuel: 2
+                'Carrot': 3,
+                'Potato': 2,
+                'Golden Apple': 0
             }
         };
 
+        // Initialize inventory counts
+        Object.keys(CROPS).forEach(k => {
+            const cropName = CROPS[k].name;
+            if (state.inventory[cropName] === undefined) {
+                state.inventory[cropName] = 0;
+            }
+        });
+
         // =================================================================
-        // TRACTOR OBJECT & PHYSICS
+        // TRACTOR & PHYSICS
         // =================================================================
         const tractor = {
-            x: 150,
+            x: 120,
             y: 250,
             angle: 0,
-            vx: 0,
-            vy: 0,
-            steering: 0,
-            enginePower: 0,
             exhaustParticles: []
         };
 
         // =================================================================
-        // NPC DATA & AI
+        // NPC DATA & TOWN ORDERS
         // =================================================================
         const npcs = [
-            { id: 1, name: 'Farmer Bob', x: 550, y: 100, itemNeeded: 'Fertilizer', reward: 50 },
-            { id: 2, name: 'Trader Alice', x: 600, y: 280, itemNeeded: 'Wheat', reward: 25 },
-            { id: 3, name: 'Mechanic Dave', x: 520, y: 420, itemNeeded: 'Tools', reward: 75 },
-            { id: 4, name: 'Rancher Emily', x: 180, y: 410, itemNeeded: 'Corn', reward: 30 }
+            { id: 1, name: 'Chef Mario', x: 520, y: 90, itemNeeded: 'Carrot' },
+            { id: 2, name: 'Grocer Sarah', x: 550, y: 250, itemNeeded: 'Potato' },
+            { id: 3, name: 'Mayor Gold', x: 480, y: 410, itemNeeded: 'Golden Apple' }
         ];
+
+        function getRandomCropName() {
+            const keys = Object.keys(CROPS);
+            // Lower probability for Golden Apple in standard random rolls
+            let chosen = CROPS[keys[Math.floor(Math.random() * keys.length)]].name;
+            if (chosen === 'Golden Apple' && Math.random() > 0.15) {
+                chosen = CROPS.CARROT.name;
+            }
+            return chosen;
+        }
 
         // =================================================================
         // PARTICLE SYSTEM (EXHAUST SMOKE)
@@ -302,18 +429,20 @@
                 isMoving = true;
             }
 
-            // Boundaries
-            tractor.x = Math.max(30, Math.min(670, tractor.x));
+            // Canvas boundaries
+            tractor.x = Math.max(30, Math.min(620, tractor.x));
             tractor.y = Math.max(30, Math.min(470, tractor.y));
 
-            // Emit particles when moving
-            if (isMoving && Math.random() < 0.4) {
-                tractor.exhaustParticles.push(createExhaustParticle(tractor.x - 10, tractor.y - 12));
+            if (isMoving) {
+                playEngineSound();
+                if (Math.random() < 0.4) {
+                    tractor.exhaustParticles.push(createExhaustParticle(tractor.x - 10, tractor.y - 12));
+                }
             }
         }
 
         // =================================================================
-        // RENDERING TRACTOR (DISTINCT FROM CAR)
+        // RENDERING TRACTOR
         // =================================================================
         function drawTractor(ctx, x, y, spec) {
             ctx.save();
@@ -324,7 +453,7 @@
             ctx.fillRect(-18, -spec.rearWheelR - 2, 14, spec.rearWheelR);
             ctx.fillRect(-18, 2, 14, spec.rearWheelR);
 
-            // Tire Tread Details
+            // Tire Treads
             ctx.fillStyle = '#333333';
             for (let i = -spec.rearWheelR - 2; i < 0; i += 4) {
                 ctx.fillRect(-18, i, 14, 2);
@@ -338,23 +467,22 @@
             ctx.fillRect(spec.bodyLength - 12, -spec.frontWheelR - 1, 8, spec.frontWheelR);
             ctx.fillRect(spec.bodyLength - 12, 1, 8, spec.frontWheelR);
 
-            // 3. Main Chassis/Engine Hood
+            // 3. Engine Hood
             ctx.fillStyle = spec.color;
             ctx.fillRect(-5, -10, spec.bodyLength, 20);
 
-            // 4. Tall Rear Cab / ROPS Frame
+            // 4. Rear Driver Cab
             ctx.fillStyle = '#2c3e50';
             ctx.fillRect(-12, -8, 12, 16);
-            ctx.fillStyle = '#3498db'; // Glass
+            ctx.fillStyle = '#3498db'; // Glass window
             ctx.fillRect(-10, -6, 8, 12);
 
-            // 5. Vertical Exhaust Pipe Stack
+            // 5. Vertical Exhaust Pipe
             ctx.fillStyle = '#7f8c8d';
             ctx.beginPath();
             ctx.arc(spec.bodyLength - 16, -8, 3, 0, Math.PI * 2);
             ctx.fill();
 
-            // Pipe rim
             ctx.strokeStyle = '#2c3e50';
             ctx.lineWidth = 1;
             ctx.stroke();
@@ -363,10 +491,10 @@
         }
 
         // =================================================================
-        // ENVIRONMENT & SCENE DRAWING
+        // ENVIRONMENT DRAWING
         // =================================================================
         function drawEnvironment(ctx, canvas) {
-            // Draw Crop Rows (Background Texture)
+            // Field Lines
             ctx.strokeStyle = '#4d7c0f';
             ctx.lineWidth = 4;
             for (let i = 0; i < canvas.width; i += 30) {
@@ -378,74 +506,98 @@
 
             // Draw NPCs
             npcs.forEach(npc => {
-                // Outer ring
                 ctx.fillStyle = '#2980b9';
                 ctx.beginPath();
                 ctx.arc(npc.x, npc.y, 14, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Inner core
                 ctx.fillStyle = '#3498db';
                 ctx.beginPath();
                 ctx.arc(npc.x, npc.y, 8, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Request Overhead Box
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-                ctx.fillRect(npc.x - 40, npc.y - 42, 80, 22);
-                ctx.strokeStyle = '#f39c12';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(npc.x - 40, npc.y - 42, 80, 22);
+                // Order Bubble
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(npc.x - 45, npc.y - 42, 90, 22);
+                ctx.strokeStyle = npc.itemNeeded === 'Golden Apple' ? '#f1c40f' : '#27ae60';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(npc.x - 45, npc.y - 42, 90, 22);
+
+                const cropObj = Object.values(CROPS).find(c => c.name === npc.itemNeeded);
+                const icon = cropObj ? cropObj.icon : '';
 
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 10px sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(`Wants: ${npc.itemNeeded}`, npc.x, npc.y - 28);
+                ctx.fillText(`${icon} ${npc.itemNeeded}`, npc.x, npc.y - 27);
             });
         }
 
         // =================================================================
-        // UI & INTERACTION LOGIC
+        // UI & SHOP ACTIONS
         // =================================================================
+        function buyCrop(cropKey) {
+            const crop = CROPS[cropKey];
+            if (state.money >= crop.cost) {
+                state.money -= crop.cost;
+                state.inventory[crop.name] = (state.inventory[crop.name] || 0) + 1;
+                playTone(600, 'sine', 0.08, 0.1);
+                updateUI();
+            } else {
+                playTone(150, 'sawtooth', 0.2, 0.1);
+            }
+        }
+
         function setVehicle(type) {
             if (VEHICLES[type]) {
                 state.currentVehicle = type;
                 document.getElementById('vehicle-type').innerText = VEHICLES[type].name;
                 document.getElementById('vehicle-speed').innerText = VEHICLES[type].speed;
+                playTone(300, 'square', 0.05, 0.1);
             }
         }
 
         function updateUI() {
-            document.getElementById('money-val').innerText = `$${state.money}`;
+            document.getElementById('money-val').innerText = state.money.toLocaleString();
             document.getElementById('rep-val').innerText = state.reputation;
 
-            // Render Inventory
-            const invContainer = document.getElementById('inventory-list');
-            invContainer.innerHTML = '';
-            for (const [item, count] of Object.entries(state.inventory)) {
-                const row = document.createElement('div');
-                row.className = 'stat-group';
-                row.innerHTML = `<span>${item}:</span> <strong>${count}</strong>`;
-                invContainer.appendChild(row);
-            }
+            // Render Store Grid
+            const storeGrid = document.getElementById('store-grid');
+            storeGrid.innerHTML = '';
 
-            // Render NPC Trade List
+            Object.keys(CROPS).forEach(k => {
+                const crop = CROPS[k];
+                const owned = state.inventory[crop.name] || 0;
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `store-item ${crop.topTier ? 'top-tier' : ''}`;
+                itemDiv.innerHTML = `
+                    <div><strong>${crop.icon} ${crop.name}</strong></div>
+                    <div style="color: #f1c40f;">Buy: ${crop.cost}g</div>
+                    <div>Owned: <strong>${owned}</strong></div>
+                    <button style="margin-top:4px;" onclick="buyCrop('${k}')">Buy 1</button>
+                `;
+                storeGrid.appendChild(itemDiv);
+            });
+
+            // Render NPC Orders
             const npcContainer = document.getElementById('npc-list');
             npcContainer.innerHTML = '';
             npcs.forEach(npc => {
                 const dist = Math.hypot(tractor.x - npc.x, tractor.y - npc.y);
-                const inRange = dist < 70;
+                const inRange = dist < 75;
+                const cropObj = Object.values(CROPS).find(c => c.name === npc.itemNeeded);
+                const reward = cropObj ? cropObj.sellReward : 50;
 
                 const card = document.createElement('div');
                 card.className = 'npc-card';
                 card.innerHTML = `
                     <div class="npc-header">
                         <span>${npc.name}</span>
-                        <span style="color: #f1c40f;">+$${npc.reward}</span>
+                        <span style="color: #f1c40f;">+${reward} coins</span>
                     </div>
-                    <div>Needs: <strong>${npc.itemNeeded}</strong></div>
+                    <div>Wants: <strong>${cropObj ? cropObj.icon : ''} ${npc.itemNeeded}</strong></div>
                     <button ${!inRange ? 'disabled' : ''} onclick="fulfillTrade(${npc.id})">
-                        ${inRange ? 'Trade Now' : 'Drive Closer'}
+                        ${inRange ? 'Deliver Produce' : 'Drive Closer'}
                     </button>
                 `;
                 npcContainer.appendChild(card);
@@ -457,21 +609,22 @@
             if (!npc) return;
 
             const neededItem = npc.itemNeeded;
+            const cropObj = Object.values(CROPS).find(c => c.name === neededItem);
+            const reward = cropObj ? cropObj.sellReward : 50;
 
             if (state.inventory[neededItem] && state.inventory[neededItem] > 0) {
                 state.inventory[neededItem]--;
-                state.money += npc.reward;
-                state.reputation += 10;
+                state.money += reward;
+                state.reputation += (neededItem === 'Golden Apple' ? 100 : 10);
 
-                // Pick a new random need
-                const keys = Object.keys(ITEMS);
-                const randomKey = keys[Math.floor(Math.random() * keys.length)];
-                npc.itemNeeded = ITEMS[randomKey].name;
-                npc.reward = ITEMS[randomKey].basePrice + Math.floor(Math.random() * 20);
+                playTradeSound();
 
+                // Assign new request
+                npc.itemNeeded = getRandomCropName();
                 updateUI();
             } else {
-                alert(`You don't have any ${neededItem} in your inventory!`);
+                playTone(150, 'sawtooth', 0.2, 0.1);
+                alert(`You need to buy or harvest a ${neededItem} first!`);
             }
         }
 
@@ -485,7 +638,6 @@
             processInput();
             updateParticles();
 
-            // Clear & Draw
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawEnvironment(ctx, canvas);
             drawParticles(ctx);
@@ -495,7 +647,7 @@
             requestAnimationFrame(loop);
         }
 
-        // Initialize UI & Start Engine
+        // Initialize UI & Start Game
         updateUI();
         requestAnimationFrame(loop);
     </script>
