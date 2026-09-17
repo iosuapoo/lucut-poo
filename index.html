@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mansion 3D — Solid Walls & Dynamic Chase</title>
+    <title>Furnished Mansion 3D — Escape House Game</title>
     <style>
         * {
             box-sizing: border-box;
@@ -50,6 +50,31 @@
             color: #aaa;
             margin-bottom: 3px;
         }
+        #key-tracker {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        .key-badge {
+            display: inline-block;
+            margin-right: 8px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            opacity: 0.3;
+            color: #fff;
+            text-shadow: 0 1px 2px #000;
+        }
+        .key-badge.acquired {
+            opacity: 1.0;
+            box-shadow: 0 0 10px currentColor;
+        }
+        .badge-blue { background: #0070ff; }
+        .badge-red { background: #ff2222; }
+        .badge-yellow { background: #ffd700; color: #000; text-shadow: none; }
+        .badge-green { background: #22cc44; }
+
         #crosshair {
             position: absolute;
             top: 50%;
@@ -93,13 +118,13 @@
             z-index: 50;
             letter-spacing: 2px;
         }
-        #jumpscare-overlay {
+        #end-overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background-color: rgba(150, 0, 0, 0.9);
+            background-color: rgba(0, 0, 0, 0.92);
             color: #ffffff;
             display: none;
             flex-direction: column;
@@ -109,16 +134,13 @@
             font-family: sans-serif;
             text-align: center;
         }
-        #jumpscare-overlay h2 {
+        #end-overlay h2 {
             font-size: 4rem;
-            color: #ff2222;
-            text-shadow: 0 0 20px #000;
             margin-bottom: 20px;
         }
-        #jumpscare-overlay button {
+        #end-overlay button {
             padding: 12px 28px;
             font-size: 1.2rem;
-            background: #ff2222;
             color: #fff;
             border: none;
             border-radius: 6px;
@@ -132,25 +154,36 @@
 </head>
 <body>
     <div id="crosshair"></div>
-    <div id="interaction-prompt">Press E to Open/Close</div>
+    <div id="interaction-prompt">Press E to Interact</div>
     <div id="monster-proximity-text">IN MY BUM</div>
+    
     <div id="ui-layer">
         <div class="hud-card">
-            <h1>Mansion — Wall Collisions & Dynamic Monster</h1>
+            <h1>Mansion Escape — 4 Keys Hunt</h1>
             <p><strong>WASD / Arrows</strong> — Move</p>
-            <p><strong>Shift</strong> — Sprint</p>
-            <p><strong>Space</strong> — Jump</p>
-            <p><strong>E</strong> — Open / Close Drawers</p>
-            <p><strong>Monster AI</strong> — Patrols slowly until it sees you, then runs!</p>
+            <p><strong>Shift</strong> — Sprint | <strong>Space</strong> — Jump</p>
+            <p><strong>E</strong> — Open Drawers / Pick Up Key / Unlock Door</p>
+            <div id="key-tracker">
+                Keys Found: 
+                <span id="badge-blue" class="key-badge badge-blue">Blue</span>
+                <span id="badge-red" class="key-badge badge-red">Red</span>
+                <span id="badge-yellow" class="key-badge badge-yellow">Yellow</span>
+                <span id="badge-green" class="key-badge badge-green">Green</span>
+            </div>
         </div>
     </div>
-    <div id="jumpscare-overlay">
-        <h2>YOU WERE CAUGHT!</h2>
-        <button onclick="restartGame()">Try Again</button>
+
+    <div id="end-overlay">
+        <h2 id="end-title">YOU WERE CAUGHT!</h2>
+        <button id="end-button" onclick="restartGame()">Try Again</button>
     </div>
+
     <div id="canvas-container"></div>
 
     <script>
+        // ==========================================
+        // GAME CONFIGURATION
+        // ==========================================
         const CONFIG = {
             fov: 75,
             near: 0.1,
@@ -159,13 +192,16 @@
             playerRadius: 0.8,
             walkSpeed: 10.0,
             runSpeed: 18.0,
-            monsterWalkSpeed: 5.0,
+            monsterWalkSpeed: 5.5,
             monsterRunSpeed: 15.0,
-            monsterRadius: 1.0,
+            monsterRadius: 1.2,
             jumpForce: 9.0,
             gravity: 24.0
         };
 
+        // ==========================================
+        // SYSTEM VARIABLES
+        // ==========================================
         let scene;
         let camera;
         let renderer;
@@ -185,14 +221,30 @@
         let canJump = false;
         let flickeringLights = [];
 
-        // Interactive & Collision Objects
+        // ==========================================
+        // INTERACTIVE & COLLISION ARRAYS
+        // ==========================================
         let interactiveObjects = [];
         let collisionBoxes = [];
+        let drawerContainers = [];
+        let exitDoorMesh;
+        let exitDoorLockGroup;
+
         let raycaster = new THREE.Raycaster();
         let sightRaycaster = new THREE.Raycaster();
         let currentTarget = null;
 
-        // Monster variables
+        // ==========================================
+        // GAMEPLAY STATE
+        // ==========================================
+        let keysFound = {
+            blue: false,
+            red: false,
+            yellow: false,
+            green: false
+        };
+        let keyMeshes = [];
+
         let monsterSprite;
         let monsterPosition = new THREE.Vector3(40, 2.1, 40);
         let monsterPatrolTarget = new THREE.Vector3(0, 2.1, 0);
@@ -200,59 +252,9 @@
         let gameOver = false;
         let speechCooldown = 0;
 
-        function createMonsterTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = 512;
-            const ctx = canvas.getContext('2d');
-
-            ctx.clearRect(0, 0, 512, 512);
-
-            ctx.fillStyle = '#2f2826';
-            ctx.beginPath();
-            ctx.ellipse(256, 256, 180, 230, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            const gradHead = ctx.createLinearGradient(256, 30, 256, 480);
-            gradHead.addColorStop(0, '#594d48');
-            gradHead.addColorStop(0.5, '#2f2826');
-            gradHead.addColorStop(1, '#1a1412');
-            ctx.fillStyle = gradHead;
-            ctx.beginPath();
-            ctx.ellipse(256, 256, 175, 225, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.ellipse(180, 160, 35, 20, 0, 0, Math.PI * 2);
-            ctx.ellipse(332, 160, 35, 20, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#0a0a0a';
-            ctx.beginPath();
-            ctx.arc(180, 160, 12, 0, Math.PI * 2);
-            ctx.arc(332, 160, 12, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#5c1e21';
-            ctx.beginPath();
-            ctx.ellipse(256, 330, 100, 130, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#050202';
-            ctx.beginPath();
-            ctx.ellipse(256, 330, 65, 95, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.strokeStyle = '#3d1214';
-            ctx.lineWidth = 10;
-            ctx.beginPath();
-            ctx.ellipse(256, 330, 85, 115, 0, 0, Math.PI * 2);
-            ctx.stroke();
-
-            return new THREE.CanvasTexture(canvas);
-        }
-
+        // ==========================================
+        // TEXTURE FACTORY
+        // ==========================================
         const TextureFactory = {
             createSolidWood: function() {
                 const canvas = document.createElement('canvas');
@@ -295,6 +297,78 @@
             }
         };
 
+        // ==========================================
+        // MESH CREATION HELPERS
+        // ==========================================
+        function createKeyMesh(hexColor) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({
+                color: hexColor,
+                metalness: 0.8,
+                roughness: 0.2
+            });
+            
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.04, 8, 16), mat);
+            ring.rotation.x = Math.PI / 2;
+            group.add(ring);
+
+            const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8), mat);
+            shaft.rotation.z = Math.PI / 2;
+            shaft.position.x = 0.3;
+            group.add(shaft);
+
+            const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.03), mat);
+            tooth.position.set(0.48, -0.06, 0);
+            group.add(tooth);
+
+            group.scale.set(1.5, 1.5, 1.5);
+            return group;
+        }
+
+        function createMonsterTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, 512, 512);
+
+            ctx.fillStyle = '#2f2826';
+            ctx.beginPath();
+            ctx.ellipse(256, 256, 180, 230, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const gradHead = ctx.createLinearGradient(256, 30, 256, 480);
+            gradHead.addColorStop(0, '#594d48');
+            gradHead.addColorStop(0.5, '#2f2826');
+            gradHead.addColorStop(1, '#1a1412');
+            ctx.fillStyle = gradHead;
+            ctx.beginPath();
+            ctx.ellipse(256, 256, 175, 225, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.ellipse(180, 160, 35, 20, 0, 0, Math.PI * 2);
+            ctx.ellipse(332, 160, 35, 20, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#0a0a0a';
+            ctx.beginPath();
+            ctx.arc(180, 160, 12, 0, Math.PI * 2);
+            ctx.arc(332, 160, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#5c1e21';
+            ctx.beginPath();
+            ctx.ellipse(256, 330, 100, 130, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // ==========================================
+        // INITIALIZATION FUNCTIONS
+        // ==========================================
         function initEngine() {
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
@@ -313,7 +387,9 @@
             });
 
             setupInputs();
-            buildOptimizedMansion();
+            buildMansion();
+            setupDownstairsExitDoor();
+            spawnRandomKeys();
             setupMonster();
             setupLights();
             window.addEventListener('resize', onWindowResize);
@@ -331,12 +407,9 @@
                         if (canJump) velocity.y += CONFIG.jumpForce;
                         canJump = false;
                         break;
-                    case 'KeyE':
-                        interactWithObject();
-                        break;
+                    case 'KeyE': interactWithTarget(); break;
                 }
             });
-
             document.addEventListener('keyup', (e) => {
                 switch (e.code) {
                     case 'KeyW': case 'ArrowUp': moveState.forward = false; break;
@@ -348,65 +421,41 @@
             });
         }
 
-        function setupMonster() {
-            const monsterTex = createMonsterTexture();
-            const mat = new THREE.SpriteMaterial({ map: monsterTex, transparent: true });
-            monsterSprite = new THREE.Sprite(mat);
-            monsterSprite.scale.set(4.5, 5.5, 1);
-            monsterSprite.position.copy(monsterPosition);
-            scene.add(monsterSprite);
-        }
-
         function addCollisionBox(x, y, z, w, h, d) {
             const box = new THREE.Box3();
             box.setFromCenterAndSize(new THREE.Vector3(x, y, z), new THREE.Vector3(w, h, d));
             collisionBoxes.push(box);
         }
 
-        function buildOptimizedMansion() {
-            const woodTex = TextureFactory.createSolidWood();
-            woodTex.repeat.set(20, 20);
-            const wallTex = TextureFactory.createSolidWall();
-            wallTex.repeat.set(10, 4);
-            const marbleTex = TextureFactory.createSolidMarble();
+        // ==========================================
+        // ENVIRONMENT MANSION BUILDER
+        // ==========================================
+        function buildMansion() {
+            const woodTex = TextureFactory.createSolidWood(); woodTex.repeat.set(20, 20);
+            const wallTex = TextureFactory.createSolidWall(); wallTex.repeat.set(10, 4);
 
             const matWood = new THREE.MeshLambertMaterial({ map: woodTex });
             const matWall = new THREE.MeshLambertMaterial({ map: wallTex });
-            const matMarble = new THREE.MeshLambertMaterial({ map: marbleTex });
-            
-            const matTableWood = new THREE.MeshLambertMaterial({ color: 0x4a2c11 });
             const matDressers = new THREE.MeshLambertMaterial({ color: 0x3d2314 });
             const matGoldHandles = new THREE.MeshLambertMaterial({ color: 0xd4af37 });
-            const matPlantLeaves = new THREE.MeshLambertMaterial({ color: 0x1e5622 });
 
             const wallGeometries = [];
             const floorGeometries = [];
-            const staticFurnitureGeometries = [];
-            const accentGeometries = [];
 
             const mapSize = 160;
             const wallHeight = 12;
 
-            const groundFloor = new THREE.BoxGeometry(mapSize, 1, mapSize);
-            groundFloor.translate(0, -0.5, 0);
-            floorGeometries.push(groundFloor);
-
-            const secondFloor = new THREE.BoxGeometry(mapSize, 1, mapSize);
-            secondFloor.translate(0, wallHeight - 0.5, 0);
-            floorGeometries.push(secondFloor);
-
-            const ceiling = new THREE.BoxGeometry(mapSize, 1, mapSize);
-            ceiling.translate(0, wallHeight * 2, 0);
-            wallGeometries.push(ceiling);
+            const groundFloor = new THREE.BoxGeometry(mapSize, 1, mapSize); groundFloor.translate(0, -0.5, 0); floorGeometries.push(groundFloor);
+            const secondFloor = new THREE.BoxGeometry(mapSize, 1, mapSize); secondFloor.translate(0, wallHeight - 0.5, 0); floorGeometries.push(secondFloor);
+            const ceiling = new THREE.BoxGeometry(mapSize, 1, mapSize); ceiling.translate(0, wallHeight * 2, 0); wallGeometries.push(ceiling);
 
             function addWall(w, h, d, x, y, z) {
-                const geo = new THREE.BoxGeometry(w, h, d);
-                geo.translate(x, y, z);
+                const geo = new THREE.BoxGeometry(w, h, d); geo.translate(x, y, z);
                 wallGeometries.push(geo);
                 addCollisionBox(x, y, z, w, h, d);
             }
 
-            // Outer Walls
+            // Perimeter Walls
             addWall(mapSize, wallHeight * 2, 2, 0, wallHeight, -mapSize/2);
             addWall(mapSize, wallHeight * 2, 2, 0, wallHeight, mapSize/2);
             addWall(2, wallHeight * 2, mapSize, -mapSize/2, wallHeight, 0);
@@ -419,40 +468,15 @@
                 zCoords.forEach(z => {
                     addWall(24, wallHeight, 1.5, x, wallHeight/2, z);
                     addWall(1.5, wallHeight, 24, x - 12, wallHeight/2, z);
-                    
                     addWall(24, wallHeight, 1.5, x, wallHeight + wallHeight/2, z);
                     addWall(1.5, wallHeight, 24, x - 12, wallHeight + wallHeight/2, z);
                 });
             });
 
-            function addTable(x, y, z, width, depth, height) {
-                const top = new THREE.BoxGeometry(width, 0.2, depth);
-                top.translate(x, y + height, z);
-                staticFurnitureGeometries.push(top);
-
-                const legW = 0.2;
-                const legH = height;
-                const legPositions = [
-                    [x - width/2 + 0.2, y + legH/2, z - depth/2 + 0.2],
-                    [x + width/2 - 0.2, y + legH/2, z - depth/2 + 0.2],
-                    [x - width/2 + 0.2, y + legH/2, z + depth/2 - 0.2],
-                    [x + width/2 - 0.2, y + legH/2, z + depth/2 - 0.2]
-                ];
-
-                legPositions.forEach(pos => {
-                    const leg = new THREE.BoxGeometry(legW, legH, legW);
-                    leg.translate(pos[0], pos[1], pos[2]);
-                    staticFurnitureGeometries.push(leg);
-                });
-
-                addCollisionBox(x, y + height/2, z, width, height, depth);
-            }
-
             function addInteractiveDresser(x, y, z, width, depth, height, drawersCount) {
                 const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), matDressers);
                 bodyMesh.position.set(x, y + height/2, z);
                 scene.add(bodyMesh);
-
                 addCollisionBox(x, y + height/2, z, width, height, depth);
 
                 const drawerH = (height - 0.2) / drawersCount;
@@ -462,7 +486,6 @@
                     const dY = y + 0.1 + (i * drawerH) + (drawerH / 2);
 
                     const drawerBox = new THREE.Mesh(new THREE.BoxGeometry(width - 0.2, drawerH - 0.05, depth - 0.1), matDressers);
-                    drawerBox.position.set(0, 0, 0);
                     drawerGroup.add(drawerBox);
 
                     const handle = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 0.1), matGoldHandles);
@@ -476,102 +499,112 @@
                         isOpen: false,
                         originalZ: z,
                         openZ: z + (depth * 0.7),
-                        type: 'drawer'
+                        type: 'drawer',
+                        contents: null
                     };
 
                     handle.userData.parentGroup = drawerGroup;
                     interactiveObjects.push(handle);
+                    drawerContainers.push(drawerGroup);
                 }
             }
 
-            function addPottedPlant(x, y, z) {
-                const pot = new THREE.CylinderGeometry(0.6, 0.4, 1.2, 8);
-                pot.translate(x, y + 0.6, z);
-                staticFurnitureGeometries.push(pot);
-
-                const bush = new THREE.SphereGeometry(1.0, 8, 8);
-                bush.translate(x, y + 1.8, z);
-                accentGeometries.push(bush);
-
-                addCollisionBox(x, y + 1.2, z, 1.2, 2.4, 1.2);
-            }
-
-            const roomCenters = [];
             xCoords.forEach(x => {
                 zCoords.forEach(z => {
-                    roomCenters.push({x: x, z: z, y: 0});
-                    roomCenters.push({x: x, z: z, y: wallHeight});
+                    addInteractiveDresser(x, 0, z - 5, 4.0, 1.8, 1.4, 3);
+                    addInteractiveDresser(x, wallHeight, z - 5, 4.0, 1.8, 1.4, 3);
                 });
             });
 
-            roomCenters.forEach((room) => {
-                addTable(room.x, room.y, room.z, 3.5, 2.5, 1.2);
-                addInteractiveDresser(room.x, room.y, room.z - 5, 4.0, 1.8, 1.4, 3);
-                addPottedPlant(room.x - 5, room.y, room.z - 5);
-            });
-
-            const mergedWalls = THREE.BufferGeometryUtils.mergeBufferGeometries(wallGeometries);
-            const wallMesh = new THREE.Mesh(mergedWalls, matWall);
-            scene.add(wallMesh);
-
-            const mergedFloors = THREE.BufferGeometryUtils.mergeBufferGeometries(floorGeometries);
-            scene.add(new THREE.Mesh(mergedFloors, matWood));
-
-            const mergedFurniture = THREE.BufferGeometryUtils.mergeBufferGeometries(staticFurnitureGeometries);
-            scene.add(new THREE.Mesh(mergedFurniture, matTableWood));
-
-            const mergedAccents = THREE.BufferGeometryUtils.mergeBufferGeometries(accentGeometries);
-            scene.add(new THREE.Mesh(mergedAccents, matPlantLeaves));
-
-            const stairGeometries = [];
-            const stepsCount = 12;
-            for (let i = 0; i < stepsCount; i++) {
-                const step = new THREE.BoxGeometry(16, 1.0, 1.5);
-                step.translate(0, 0.5 + i, -10.0 - (i * 1.5));
-                stairGeometries.push(step);
-            }
-            const mergedStairs = THREE.BufferGeometryUtils.mergeBufferGeometries(stairGeometries);
-            scene.add(new THREE.Mesh(mergedStairs, matMarble));
+            scene.add(new THREE.Mesh(THREE.BufferGeometryUtils.mergeBufferGeometries(wallGeometries), matWall));
+            scene.add(new THREE.Mesh(THREE.BufferGeometryUtils.mergeBufferGeometries(floorGeometries), matWood));
         }
 
-        function createPointLightInstance(x, y, z, color, intensity, distance) {
-            const light = new THREE.PointLight(color, intensity, distance);
-            light.position.set(x, y, z);
-            scene.add(light);
-            flickeringLights.push({
-                light: light,
-                baseIntensity: intensity,
-                speed: 10 + Math.random() * 20
+        // ==========================================
+        // DOOR & OBJECT SPAWNING
+        // ==========================================
+        function setupDownstairsExitDoor() {
+            const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0x221105 });
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0x5a180d, metalness: 0.2, roughness: 0.6 });
+
+            const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(6.5, 8.5, 0.8), doorFrameMat);
+            doorFrame.position.set(0, 4.25, -78.5);
+            scene.add(doorFrame);
+
+            exitDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(5.5, 8.0, 0.4), doorMat);
+            exitDoorMesh.position.set(0, 4.0, -78.5);
+            scene.add(exitDoorMesh);
+
+            addCollisionBox(0, 4.0, -78.5, 6.0, 8.0, 1.0);
+
+            exitDoorLockGroup = new THREE.Group();
+            const lockColors = [0x0070ff, 0xff2222, 0xffd700, 0x22cc44];
+            lockColors.forEach((col, idx) => {
+                const lockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.2), new THREE.MeshStandardMaterial({ color: col }));
+                lockMesh.position.set(-1.2 + (idx * 0.8), 4.0, -78.2);
+                exitDoorLockGroup.add(lockMesh);
             });
+            scene.add(exitDoorLockGroup);
+
+            exitDoorMesh.userData = { type: 'door' };
+            interactiveObjects.push(exitDoorMesh);
+        }
+
+        function spawnRandomKeys() {
+            const keyConfigs = [
+                { id: 'blue', color: 0x0070ff, badge: 'badge-blue' },
+                { id: 'red', color: 0xff2222, badge: 'badge-red' },
+                { id: 'yellow', color: 0xffd700, badge: 'badge-yellow' },
+                { id: 'green', color: 0x22cc44, badge: 'badge-green' }
+            ];
+
+            const shuffledContainers = [...drawerContainers].sort(() => Math.random() - 0.5);
+
+            keyConfigs.forEach((cfg, idx) => {
+                const targetContainer = shuffledContainers[idx];
+                const keyMesh = createKeyMesh(cfg.color);
+
+                keyMesh.position.set(0, 0, 0);
+                targetContainer.add(keyMesh);
+
+                keyMesh.userData = {
+                    type: 'key',
+                    keyId: cfg.id,
+                    badgeId: cfg.badge,
+                    parentGroup: targetContainer
+                };
+
+                targetContainer.userData.contents = keyMesh;
+                keyMeshes.push(keyMesh);
+            });
+        }
+
+        function setupMonster() {
+            const monsterTex = createMonsterTexture();
+            const mat = new THREE.SpriteMaterial({ map: monsterTex, transparent: true });
+            monsterSprite = new THREE.Sprite(mat);
+            monsterSprite.scale.set(4.5, 5.5, 1);
+            monsterSprite.position.copy(monsterPosition);
+            scene.add(monsterSprite);
         }
 
         function setupLights() {
-            const ambient = new THREE.AmbientLight(0xffffff, 0.45);
-            scene.add(ambient);
-
+            scene.add(new THREE.AmbientLight(0xffffff, 0.45));
             const xCoords = [-60, -20, 20, 60];
             const zCoords = [-55, -25, 5, 35, 65];
 
             xCoords.forEach(x => {
                 zCoords.forEach(z => {
-                    createPointLightInstance(x, 10, z, 0xffaa44, 1.2, 40);
-                    createPointLightInstance(x, 22, z, 0xffaa44, 1.2, 40);
+                    const l1 = new THREE.PointLight(0xffaa44, 1.2, 40);
+                    l1.position.set(x, 10, z); scene.add(l1);
+                    flickeringLights.push({ light: l1, baseIntensity: 1.2, speed: 12 });
                 });
             });
         }
 
-        function animateFlicker(time) {
-            for (let i = 0; i < flickeringLights.length; i++) {
-                const item = flickeringLights[i];
-                const noise = Math.sin(time * item.speed);
-                if (Math.random() > 0.96) {
-                    item.light.intensity = item.baseIntensity * 0.1;
-                } else {
-                    item.light.intensity = item.baseIntensity + (noise * 0.2);
-                }
-            }
-        }
-
+        // ==========================================
+        // MONSTER & PHYSICS LOOPS
+        // ==========================================
         function checkLineOfSightToPlayer() {
             const playerPos = controls.getObject().position;
             const monsterPos = monsterSprite.position;
@@ -583,10 +616,7 @@
             sightRaycaster.set(monsterPos, dir);
             sightRaycaster.far = dist;
 
-            const obstacleMeshes = scene.children.filter(obj => obj.isMesh);
-            const intersects = sightRaycaster.intersectObjects(obstacleMeshes, true);
-
-            // If ray hit a wall/mesh before reaching player, sight is blocked
+            const intersects = sightRaycaster.intersectObjects(scene.children.filter(o => o.isMesh), true);
             return intersects.length === 0;
         }
 
@@ -595,7 +625,6 @@
             
             for (let i = 0; i < collisionBoxes.length; i++) {
                 const wall = collisionBoxes[i];
-                
                 entityBox.setFromCenterAndSize(entityPos, new THREE.Vector3(radius * 2, CONFIG.playerHeight, radius * 2));
                 
                 if (entityBox.intersectsBox(wall)) {
@@ -603,7 +632,7 @@
                     wall.clampPoint(entityPos, closestPoint);
                     
                     const overlap = new THREE.Vector3().subVectors(entityPos, closestPoint);
-                    overlap.y = 0; // Keep horizontal push
+                    overlap.y = 0;
                     
                     const dist = overlap.length();
                     if (dist < radius && dist > 0) {
@@ -617,28 +646,21 @@
         function speakPhrase() {
             if ('speechSynthesis' in window && performance.now() - speechCooldown > 1200) {
                 const utterance = new SpeechSynthesisUtterance("in my bum");
-                utterance.pitch = 0.5;
-                utterance.rate = 1.2;
+                utterance.pitch = 0.5; utterance.rate = 1.2;
                 window.speechSynthesis.speak(utterance);
                 speechCooldown = performance.now();
             }
         }
 
         function getNewPatrolTarget() {
-            const x = (Math.random() - 0.5) * 120;
-            const z = (Math.random() - 0.5) * 120;
-            monsterPatrolTarget.set(x, monsterSprite.position.y, z);
+            monsterPatrolTarget.set((Math.random() - 0.5) * 120, monsterSprite.position.y, (Math.random() - 0.5) * 120);
         }
 
         function updateMonsterAI(delta) {
             if (gameOver || !controls.isLocked) return;
 
             const playerPos = controls.getObject().position;
-            const hasLineOfSight = checkLineOfSightToPlayer();
-
-            if (hasLineOfSight) {
-                monsterChasing = true;
-            }
+            if (checkLineOfSightToPlayer()) monsterChasing = true;
 
             let targetPos = monsterChasing ? playerPos : monsterPatrolTarget;
             let currentSpeed = monsterChasing ? CONFIG.monsterRunSpeed : CONFIG.monsterWalkSpeed;
@@ -647,9 +669,7 @@
             dir.y = 0;
             const dist = dir.length();
 
-            if (!monsterChasing && dist < 3.0) {
-                getNewPatrolTarget();
-            }
+            if (!monsterChasing && dist < 3.0) getNewPatrolTarget();
 
             if (dist > 0.1) {
                 dir.normalize();
@@ -657,7 +677,6 @@
                 handleCollision(monsterSprite.position, CONFIG.monsterRadius);
             }
 
-            // Proximity text & audio trigger when close
             const playerDist = monsterSprite.position.distanceTo(playerPos);
             const proximityEl = document.getElementById('monster-proximity-text');
             if (playerDist < 10.0) {
@@ -667,70 +686,130 @@
                 proximityEl.style.display = 'none';
             }
 
-            // Jumpscare collision
-            if (playerDist < 1.8) {
-                triggerJumpscare();
-            }
+            if (playerDist < 1.8) triggerEndGame(false);
         }
 
-        function triggerJumpscare() {
-            gameOver = true;
-            controls.unlock();
-            document.getElementById('monster-proximity-text').style.display = 'none';
-            document.getElementById('jumpscare-overlay').style.display = 'flex';
-        }
-
-        function restartGame() {
-            gameOver = false;
-            monsterChasing = false;
-            document.getElementById('jumpscare-overlay').style.display = 'none';
-            document.getElementById('monster-proximity-text').style.display = 'none';
-            controls.getObject().position.set(0, CONFIG.playerHeight, 0);
-            monsterSprite.position.set(40, CONFIG.playerHeight, 40);
-            getNewPatrolTarget();
-            controls.lock();
-        }
-
+        // ==========================================
+        // INTERACTION HANDLERS
+        // ==========================================
         function checkInteractions() {
             if (!controls.isLocked || gameOver) return;
 
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const intersects = raycaster.intersectObjects(interactiveObjects);
+            
+            const interactables = [...interactiveObjects];
+            keyMeshes.forEach(k => {
+                if(k.parent && k.parent.userData.isOpen) interactables.push(k);
+            });
 
+            const intersects = raycaster.intersectObjects(interactables, true);
             const promptEl = document.getElementById('interaction-prompt');
 
             if (intersects.length > 0 && intersects[0].distance < 6.0) {
-                currentTarget = intersects[0].object.userData.parentGroup;
-                promptEl.style.display = 'block';
-                promptEl.innerText = currentTarget.userData.isOpen ? "Press E to Close Drawer" : "Press E to Open Drawer";
-            } else {
-                currentTarget = null;
-                promptEl.style.display = 'none';
+                let hitObj = intersects[0].object;
+
+                let keyHit = null;
+                let curr = hitObj;
+                while(curr) {
+                    if (curr.userData && curr.userData.type === 'key') {
+                        keyHit = curr;
+                        break;
+                    }
+                    curr = curr.parent;
+                }
+
+                if (keyHit) {
+                    currentTarget = keyHit;
+                    promptEl.style.display = 'block';
+                    promptEl.innerText = `Press E to Pick Up ${keyHit.userData.keyId.toUpperCase()} Key`;
+                    return;
+                }
+
+                if (hitObj.userData && hitObj.userData.type === 'door') {
+                    currentTarget = hitObj;
+                    promptEl.style.display = 'block';
+                    const allKeys = Object.values(keysFound).every(v => v);
+                    promptEl.innerText = allKeys ? "Press E to Unlock Exit Door" : "Locked Downstairs Exit (Requires All 4 Keys)";
+                    return;
+                }
+
+                if (hitObj.userData && hitObj.userData.parentGroup) {
+                    currentTarget = hitObj.userData.parentGroup;
+                    promptEl.style.display = 'block';
+                    promptEl.innerText = currentTarget.userData.isOpen ? "Press E to Close Drawer" : "Press E to Open Drawer";
+                    return;
+                }
             }
+
+            currentTarget = null;
+            promptEl.style.display = 'none';
         }
 
-        function interactWithObject() {
-            if (currentTarget && !gameOver) {
+        function interactWithTarget() {
+            if (!currentTarget || gameOver) return;
+
+            if (currentTarget.userData && currentTarget.userData.type === 'key') {
+                const keyId = currentTarget.userData.keyId;
+                keysFound[keyId] = true;
+                document.getElementById(currentTarget.userData.badgeId).classList.add('acquired');
+
+                if (currentTarget.parent) {
+                    currentTarget.parent.remove(currentTarget);
+                }
+                currentTarget = null;
+                return;
+            }
+
+            if (currentTarget.userData && currentTarget.userData.type === 'door') {
+                const allKeys = Object.values(keysFound).every(v => v);
+                if (allKeys) {
+                    triggerEndGame(true);
+                }
+                return;
+            }
+
+            if (currentTarget.userData && currentTarget.userData.type === 'drawer') {
                 const group = currentTarget;
                 group.userData.isOpen = !group.userData.isOpen;
                 
                 const targetZ = group.userData.isOpen ? group.userData.openZ : group.userData.originalZ;
-                
                 const startZ = group.position.z;
                 const startTime = performance.now();
-                const duration = 250;
 
                 function animateMove(now) {
-                    const elapsed = now - startTime;
-                    const progress = Math.min(elapsed / duration, 1.0);
+                    const progress = Math.min((now - startTime) / 250, 1.0);
                     group.position.z = THREE.MathUtils.lerp(startZ, targetZ, progress);
-
-                    if (progress < 1.0) {
-                        requestAnimationFrame(animateMove);
-                    }
+                    if (progress < 1.0) requestAnimationFrame(animateMove);
                 }
                 requestAnimationFrame(animateMove);
             }
+        }
+
+        function triggerEndGame(victory) {
+            gameOver = true;
+            controls.unlock();
+            document.getElementById('monster-proximity-text').style.display = 'none';
+
+            const overlay = document.getElementById('end-overlay');
+            const title = document.getElementById('end-title');
+            const btn = document.getElementById('end-button');
+
+            if (victory) {
+                title.innerText = "YOU ESCAPED THE MANSION!";
+                title.style.color = "#22cc44";
+                btn.innerText = "Play Again";
+                btn.style.background = "#22cc44";
+            } else {
+                title.innerText = "YOU WERE CAUGHT!";
+                title.style.color = "#ff2222";
+                btn.innerText = "Try Again";
+                btn.style.background = "#ff2222";
+            }
+            overlay.style.display = 'flex';
+        }
+
+        function restartGame() {
+            window.location.reload();
         }
 
         function onWindowResize() {
@@ -739,13 +818,13 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
+        // ==========================================
+        // MAIN GAME LOOP
+        // ==========================================
         function animate() {
             requestAnimationFrame(animate);
 
             const delta = Math.min(clock.getDelta(), 0.1);
-            const elapsedTime = clock.getElapsedTime();
-
-            animateFlicker(elapsedTime);
             checkInteractions();
             updateMonsterAI(delta);
 
@@ -755,7 +834,6 @@
                 velocity.y -= CONFIG.gravity * delta;
 
                 const speed = moveState.sprint ? CONFIG.runSpeed : CONFIG.walkSpeed;
-
                 const moveVector = new THREE.Vector3();
                 if (moveState.forward) moveVector.z += 1;
                 if (moveState.backward) moveVector.z -= 1;
@@ -766,7 +844,6 @@
                 if (moveState.forward || moveState.backward) velocity.z += moveVector.z * speed * 10.0 * delta;
                 if (moveState.left || moveState.right) velocity.x += moveVector.x * speed * 10.0 * delta;
 
-                // Move & apply wall collisions
                 controls.moveRight(velocity.x * delta);
                 controls.moveForward(velocity.z * delta);
 
@@ -776,10 +853,8 @@
                 controls.getObject().position.y += (velocity.y * delta);
 
                 let currentFloorHeight = 0;
-
                 if (playerPos.z <= -10 && playerPos.z >= -28 && Math.abs(playerPos.x) <= 10) {
-                    const stairProgress = Math.min(1.0, Math.max(0.0, (-10 - playerPos.z) / 18));
-                    currentFloorHeight = stairProgress * 12;
+                    currentFloorHeight = Math.min(1.0, Math.max(0.0, (-10 - playerPos.z) / 18)) * 12;
                 } else if (playerPos.y >= 10) {
                     currentFloorHeight = 12;
                 }
