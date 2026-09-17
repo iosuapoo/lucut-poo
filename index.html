@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Furnished Mansion 3D — Sight Chase</title>
+    <title>Mansion 3D — Solid Walls & Dynamic Chase</title>
     <style>
         * {
             box-sizing: border-box;
@@ -136,12 +136,12 @@
     <div id="monster-proximity-text">IN MY BUM</div>
     <div id="ui-layer">
         <div class="hud-card">
-            <h1>Noclip Mansion — Look to Activate</h1>
-            <p><strong>WASD / Arrows</strong> — Move through walls</p>
-            <p><strong>Shift</strong> — Sprint (Same speed as monster)</p>
+            <h1>Mansion — Wall Collisions & Dynamic Monster</h1>
+            <p><strong>WASD / Arrows</strong> — Move</p>
+            <p><strong>Shift</strong> — Sprint</p>
             <p><strong>Space</strong> — Jump</p>
             <p><strong>E</strong> — Open / Close Drawers</p>
-            <p><strong>Look At Monster</strong> — Triggers chase</p>
+            <p><strong>Monster AI</strong> — Patrols slowly until it sees you, then runs!</p>
         </div>
     </div>
     <div id="jumpscare-overlay">
@@ -156,10 +156,12 @@
             near: 0.1,
             far: 400,
             playerHeight: 2.1,
+            playerRadius: 0.8,
             walkSpeed: 10.0,
             runSpeed: 18.0,
-            monsterWalkSpeed: 13.5,
-            monsterRunSpeed: 18.0,
+            monsterWalkSpeed: 5.0,
+            monsterRunSpeed: 15.0,
+            monsterRadius: 1.0,
             jumpForce: 9.0,
             gravity: 24.0
         };
@@ -183,18 +185,19 @@
         let canJump = false;
         let flickeringLights = [];
 
-        // Interactive Objects
+        // Interactive & Collision Objects
         let interactiveObjects = [];
+        let collisionBoxes = [];
         let raycaster = new THREE.Raycaster();
+        let sightRaycaster = new THREE.Raycaster();
         let currentTarget = null;
 
         // Monster variables
         let monsterSprite;
         let monsterPosition = new THREE.Vector3(40, 2.1, 40);
-        let monsterActivated = false;
+        let monsterPatrolTarget = new THREE.Vector3(0, 2.1, 0);
+        let monsterChasing = false;
         let gameOver = false;
-        let frustum = new THREE.Frustum();
-        let cameraMatrix = new THREE.Matrix4();
         let speechCooldown = 0;
 
         function createMonsterTexture() {
@@ -354,6 +357,12 @@
             scene.add(monsterSprite);
         }
 
+        function addCollisionBox(x, y, z, w, h, d) {
+            const box = new THREE.Box3();
+            box.setFromCenterAndSize(new THREE.Vector3(x, y, z), new THREE.Vector3(w, h, d));
+            collisionBoxes.push(box);
+        }
+
         function buildOptimizedMansion() {
             const woodTex = TextureFactory.createSolidWood();
             woodTex.repeat.set(20, 20);
@@ -394,6 +403,7 @@
                 const geo = new THREE.BoxGeometry(w, h, d);
                 geo.translate(x, y, z);
                 wallGeometries.push(geo);
+                addCollisionBox(x, y, z, w, h, d);
             }
 
             // Outer Walls
@@ -434,12 +444,16 @@
                     leg.translate(pos[0], pos[1], pos[2]);
                     staticFurnitureGeometries.push(leg);
                 });
+
+                addCollisionBox(x, y + height/2, z, width, height, depth);
             }
 
             function addInteractiveDresser(x, y, z, width, depth, height, drawersCount) {
                 const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), matDressers);
                 bodyMesh.position.set(x, y + height/2, z);
                 scene.add(bodyMesh);
+
+                addCollisionBox(x, y + height/2, z, width, height, depth);
 
                 const drawerH = (height - 0.2) / drawersCount;
 
@@ -478,6 +492,8 @@
                 const bush = new THREE.SphereGeometry(1.0, 8, 8);
                 bush.translate(x, y + 1.8, z);
                 accentGeometries.push(bush);
+
+                addCollisionBox(x, y + 1.2, z, 1.2, 2.4, 1.2);
             }
 
             const roomCenters = [];
@@ -495,7 +511,8 @@
             });
 
             const mergedWalls = THREE.BufferGeometryUtils.mergeBufferGeometries(wallGeometries);
-            scene.add(new THREE.Mesh(mergedWalls, matWall));
+            const wallMesh = new THREE.Mesh(mergedWalls, matWall);
+            scene.add(wallMesh);
 
             const mergedFloors = THREE.BufferGeometryUtils.mergeBufferGeometries(floorGeometries);
             scene.add(new THREE.Mesh(mergedFloors, matWood));
@@ -555,13 +572,46 @@
             }
         }
 
-        function isMonsterVisibleToCamera() {
-            camera.updateMatrixWorld();
-            camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
-            cameraMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-            frustum.setFromProjectionMatrix(cameraMatrix);
+        function checkLineOfSightToPlayer() {
+            const playerPos = controls.getObject().position;
+            const monsterPos = monsterSprite.position;
 
-            return frustum.containsPoint(monsterSprite.position);
+            const dir = new THREE.Vector3().subVectors(playerPos, monsterPos);
+            const dist = dir.length();
+            dir.normalize();
+
+            sightRaycaster.set(monsterPos, dir);
+            sightRaycaster.far = dist;
+
+            const obstacleMeshes = scene.children.filter(obj => obj.isMesh);
+            const intersects = sightRaycaster.intersectObjects(obstacleMeshes, true);
+
+            // If ray hit a wall/mesh before reaching player, sight is blocked
+            return intersects.length === 0;
+        }
+
+        function handleCollision(entityPos, radius) {
+            const entityBox = new THREE.Box3();
+            
+            for (let i = 0; i < collisionBoxes.length; i++) {
+                const wall = collisionBoxes[i];
+                
+                entityBox.setFromCenterAndSize(entityPos, new THREE.Vector3(radius * 2, CONFIG.playerHeight, radius * 2));
+                
+                if (entityBox.intersectsBox(wall)) {
+                    const closestPoint = new THREE.Vector3();
+                    wall.clampPoint(entityPos, closestPoint);
+                    
+                    const overlap = new THREE.Vector3().subVectors(entityPos, closestPoint);
+                    overlap.y = 0; // Keep horizontal push
+                    
+                    const dist = overlap.length();
+                    if (dist < radius && dist > 0) {
+                        overlap.normalize().multiplyScalar(radius - dist);
+                        entityPos.add(overlap);
+                    }
+                }
+            }
         }
 
         function speakPhrase() {
@@ -574,31 +624,43 @@
             }
         }
 
+        function getNewPatrolTarget() {
+            const x = (Math.random() - 0.5) * 120;
+            const z = (Math.random() - 0.5) * 120;
+            monsterPatrolTarget.set(x, monsterSprite.position.y, z);
+        }
+
         function updateMonsterAI(delta) {
             if (gameOver || !controls.isLocked) return;
 
-            // Check if monster should activate via line-of-sight view
-            if (!monsterActivated && isMonsterVisibleToCamera()) {
-                monsterActivated = true;
+            const playerPos = controls.getObject().position;
+            const hasLineOfSight = checkLineOfSightToPlayer();
+
+            if (hasLineOfSight) {
+                monsterChasing = true;
             }
 
-            if (!monsterActivated) return;
+            let targetPos = monsterChasing ? playerPos : monsterPatrolTarget;
+            let currentSpeed = monsterChasing ? CONFIG.monsterRunSpeed : CONFIG.monsterWalkSpeed;
 
-            const playerPos = controls.getObject().position;
-            const dir = new THREE.Vector3().subVectors(playerPos, monsterSprite.position);
+            const dir = new THREE.Vector3().subVectors(targetPos, monsterSprite.position);
+            dir.y = 0;
             const dist = dir.length();
-            dir.normalize();
 
-            // Movement speeds
-            const isPlayerSprinting = moveState.sprint && (moveState.forward || moveState.backward || moveState.left || moveState.right);
-            const monsterSpeed = isPlayerSprinting ? CONFIG.monsterRunSpeed : CONFIG.monsterWalkSpeed;
+            if (!monsterChasing && dist < 3.0) {
+                getNewPatrolTarget();
+            }
 
-            // Move straight through walls/obstacles towards player
-            monsterSprite.position.addScaledVector(dir, monsterSpeed * delta);
+            if (dist > 0.1) {
+                dir.normalize();
+                monsterSprite.position.addScaledVector(dir, currentSpeed * delta);
+                handleCollision(monsterSprite.position, CONFIG.monsterRadius);
+            }
 
-            // Proximity phrase trigger when close
+            // Proximity text & audio trigger when close
+            const playerDist = monsterSprite.position.distanceTo(playerPos);
             const proximityEl = document.getElementById('monster-proximity-text');
-            if (dist < 12.0) {
+            if (playerDist < 10.0) {
                 proximityEl.style.display = 'block';
                 speakPhrase();
             } else {
@@ -606,7 +668,7 @@
             }
 
             // Jumpscare collision
-            if (dist < 1.8) {
+            if (playerDist < 1.8) {
                 triggerJumpscare();
             }
         }
@@ -620,11 +682,12 @@
 
         function restartGame() {
             gameOver = false;
-            monsterActivated = false;
+            monsterChasing = false;
             document.getElementById('jumpscare-overlay').style.display = 'none';
             document.getElementById('monster-proximity-text').style.display = 'none';
             controls.getObject().position.set(0, CONFIG.playerHeight, 0);
             monsterSprite.position.set(40, CONFIG.playerHeight, 40);
+            getNewPatrolTarget();
             controls.lock();
         }
 
@@ -703,12 +766,14 @@
                 if (moveState.forward || moveState.backward) velocity.z += moveVector.z * speed * 10.0 * delta;
                 if (moveState.left || moveState.right) velocity.x += moveVector.x * speed * 10.0 * delta;
 
-                // Move directly through walls without collision checks
+                // Move & apply wall collisions
                 controls.moveRight(velocity.x * delta);
                 controls.moveForward(velocity.z * delta);
 
-                controls.getObject().position.y += (velocity.y * delta);
                 const playerPos = controls.getObject().position;
+                handleCollision(playerPos, CONFIG.playerRadius);
+
+                controls.getObject().position.y += (velocity.y * delta);
 
                 let currentFloorHeight = 0;
 
