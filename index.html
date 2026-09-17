@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Furnished Mansion 3D — Flashlight Hunt</title>
+    <title>3D Mansion Escape — Torch & Darkness</title>
     <style>
         * {
             box-sizing: border-box;
@@ -16,7 +16,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #030305;
+            background-color: #000000;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         #canvas-container {
@@ -75,14 +75,20 @@
         .badge-yellow { background: #ffd700; color: #000; text-shadow: none; }
         .badge-green { background: #22cc44; }
 
-        #torch-status {
+        #light-cycle-status {
             margin-top: 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #ffb700;
+        }
+        #torch-toggle-status {
+            margin-top: 4px;
             font-size: 0.85rem;
             font-weight: bold;
             color: #22cc44;
         }
-        #torch-status.warning {
-            color: #ff2222;
+        .warning {
+            color: #ff2222 !important;
             animation: blink 0.8s infinite alternate;
         }
 
@@ -175,11 +181,13 @@
     
     <div id="ui-layer">
         <div class="hud-card">
-            <h1>Mansion Escape — Torch Mode</h1>
+            <h1>Mansion Escape</h1>
             <p><strong>WASD / Arrows</strong> — Move</p>
             <p><strong>Shift</strong> — Sprint | <strong>Space</strong> — Jump</p>
-            <p><strong>E</strong> — Open Drawers / Pick Up Key / Unlock Door</p>
-            <div id="torch-status">TORCH STATUS: ONLINE (60s)</div>
+            <p><strong>F</strong> — Toggle Torch Light</p>
+            <p><strong>E</strong> — Open Drawers / Pick Key / Unlock Door</p>
+            <div id="light-cycle-status">MANSION POWER: LIGHT (60s)</div>
+            <div id="torch-toggle-status">TORCH LIGHT: ON</div>
             <div id="key-tracker">
                 Keys Found: 
                 <span id="badge-blue" class="key-badge badge-blue">Blue</span>
@@ -199,7 +207,7 @@
 
     <script>
         // ==========================================
-        // GAME CONFIGURATION
+        // CONFIGURATION
         // ==========================================
         const CONFIG = {
             fov: 75,
@@ -209,22 +217,19 @@
             playerRadius: 0.8,
             walkSpeed: 10.0,
             runSpeed: 18.0,
-            monsterWalkSpeed: 5.5,
-            monsterRunSpeed: 15.0,
+            monsterWalkSpeed: 6.0,
+            monsterRunSpeed: 14.0,
             monsterRadius: 1.2,
             jumpForce: 9.0,
             gravity: 24.0,
-            torchOnDuration: 60.0,  // Flashlight ON time (seconds)
-            torchOffDuration: 10.0  // Flashlight OFF blackout time (seconds)
+            lightOnDuration: 60.0,   // 1 minute light
+            darkOffDuration: 10.0   // 10 seconds dark
         };
 
         // ==========================================
         // SYSTEM VARIABLES
         // ==========================================
-        let scene;
-        let camera;
-        let renderer;
-        let controls;
+        let scene, camera, renderer, controls;
         let clock = new THREE.Clock();
 
         let moveState = {
@@ -232,46 +237,46 @@
             backward: false,
             left: false,
             right: false,
-            sprint: false,
-            jump: false
+            sprint: false
         };
 
         let velocity = new THREE.Vector3();
         let canJump = false;
 
-        // Flashlight Light Source
-        let flashlightLight;
-        let flashlightTarget;
-        let flashlightTimer = 0.0;
-        let isFlashlightActive = true;
+        // Lighting System
+        let ambientLight;
+        let mansionLights = [];
+        let torchLight, torchTarget;
+        let isTorchTurnedOn = true;
+        let isMansionPowerOn = true;
+        let powerCycleTimer = 0.0;
 
-        // ==========================================
-        // INTERACTIVE & COLLISION ARRAYS
-        // ==========================================
+        // Interactive & Collision Arrays
         let interactiveObjects = [];
         let collisionBoxes = [];
         let drawerContainers = [];
         let exitDoorMesh;
-        let exitDoorLockGroup;
 
         let raycaster = new THREE.Raycaster();
         let sightRaycaster = new THREE.Raycaster();
         let currentTarget = null;
 
-        // ==========================================
-        // GAMEPLAY STATE
-        // ==========================================
-        let keysFound = {
-            blue: false,
-            red: false,
-            yellow: false,
-            green: false
-        };
+        // Gameplay State
+        let keysFound = { blue: false, red: false, yellow: false, green: false };
         let keyMeshes = [];
 
         let monsterSprite;
-        let monsterPosition = new THREE.Vector3(40, 2.1, 40);
-        let monsterPatrolTarget = new THREE.Vector3(0, 2.1, 0);
+        let monsterPosition = new THREE.Vector3(30, 2.1, 30);
+        let monsterWaypoints = [
+            new THREE.Vector3(-40, 2.1, -40),
+            new THREE.Vector3(40, 2.1, -40),
+            new THREE.Vector3(40, 2.1, 40),
+            new THREE.Vector3(-40, 2.1, 40),
+            new THREE.Vector3(0, 2.1, 0),
+            new THREE.Vector3(-30, 14.1, -30),
+            new THREE.Vector3(30, 14.1, 30)
+        ];
+        let currentWaypointIndex = 0;
         let monsterChasing = false;
         let gameOver = false;
         let speechCooldown = 0;
@@ -282,32 +287,24 @@
         const TextureFactory = {
             createSolidWood: function() {
                 const canvas = document.createElement('canvas');
-                canvas.width = 128;
-                canvas.height = 128;
+                canvas.width = 128; canvas.height = 128;
                 const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#2b1704';
-                ctx.fillRect(0, 0, 128, 128);
+                ctx.fillStyle = '#2b1704'; ctx.fillRect(0, 0, 128, 128);
                 ctx.fillStyle = '#3a1f06';
-                ctx.fillRect(0, 0, 62, 62);
-                ctx.fillRect(64, 64, 62, 62);
+                ctx.fillRect(0, 0, 62, 62); ctx.fillRect(64, 64, 62, 62);
                 const tex = new THREE.CanvasTexture(canvas);
-                tex.wrapS = THREE.RepeatWrapping;
-                tex.wrapT = THREE.RepeatWrapping;
+                tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
                 return tex;
             },
             createSolidWall: function() {
                 const canvas = document.createElement('canvas');
-                canvas.width = 128;
-                canvas.height = 128;
+                canvas.width = 128; canvas.height = 128;
                 const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#1c0c10';
-                ctx.fillRect(0, 0, 128, 128);
-                ctx.strokeStyle = '#3d1c24';
-                ctx.lineWidth = 4;
+                ctx.fillStyle = '#1c0c10'; ctx.fillRect(0, 0, 128, 128);
+                ctx.strokeStyle = '#3d1c24'; ctx.lineWidth = 4;
                 ctx.strokeRect(0, 0, 128, 128);
                 const tex = new THREE.CanvasTexture(canvas);
-                tex.wrapS = THREE.RepeatWrapping;
-                tex.wrapT = THREE.RepeatWrapping;
+                tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
                 return tex;
             }
         };
@@ -317,78 +314,55 @@
         // ==========================================
         function createKeyMesh(hexColor) {
             const group = new THREE.Group();
-            const mat = new THREE.MeshStandardMaterial({
-                color: hexColor,
-                metalness: 0.8,
-                roughness: 0.2
-            });
-            
+            const mat = new THREE.MeshStandardMaterial({ color: hexColor, metalness: 0.8, roughness: 0.2 });
             const ring = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.04, 8, 16), mat);
             ring.rotation.x = Math.PI / 2;
             group.add(ring);
-
             const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8), mat);
-            shaft.rotation.z = Math.PI / 2;
-            shaft.position.x = 0.3;
+            shaft.rotation.z = Math.PI / 2; shaft.position.x = 0.3;
             group.add(shaft);
-
             const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.03), mat);
             tooth.position.set(0.48, -0.06, 0);
             group.add(tooth);
-
             group.scale.set(1.5, 1.5, 1.5);
             return group;
         }
 
         function createMonsterTexture() {
             const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = 512;
+            canvas.width = 512; canvas.height = 512;
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, 512, 512);
 
-            ctx.fillStyle = '#2f2826';
-            ctx.beginPath();
-            ctx.ellipse(256, 256, 180, 230, 0, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillStyle = '#2f2826'; ctx.beginPath();
+            ctx.ellipse(256, 256, 180, 230, 0, 0, Math.PI * 2); ctx.fill();
 
             const gradHead = ctx.createLinearGradient(256, 30, 256, 480);
-            gradHead.addColorStop(0, '#594d48');
-            gradHead.addColorStop(0.5, '#2f2826');
-            gradHead.addColorStop(1, '#1a1412');
-            ctx.fillStyle = gradHead;
-            ctx.beginPath();
-            ctx.ellipse(256, 256, 175, 225, 0, 0, Math.PI * 2);
-            ctx.fill();
+            gradHead.addColorStop(0, '#594d48'); gradHead.addColorStop(0.5, '#2f2826'); gradHead.addColorStop(1, '#1a1412');
+            ctx.fillStyle = gradHead; ctx.beginPath();
+            ctx.ellipse(256, 256, 175, 225, 0, 0, Math.PI * 2); ctx.fill();
 
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
+            ctx.fillStyle = '#ffffff'; ctx.beginPath();
             ctx.ellipse(180, 160, 35, 20, 0, 0, Math.PI * 2);
-            ctx.ellipse(332, 160, 35, 20, 0, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.ellipse(332, 160, 35, 20, 0, 0, Math.PI * 2); ctx.fill();
 
-            ctx.fillStyle = '#0a0a0a';
-            ctx.beginPath();
-            ctx.arc(180, 160, 12, 0, Math.PI * 2);
-            ctx.arc(332, 160, 12, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillStyle = '#0a0a0a'; ctx.beginPath();
+            ctx.arc(180, 160, 12, 0, Math.PI * 2); ctx.arc(332, 160, 12, 0, Math.PI * 2); ctx.fill();
 
-            ctx.fillStyle = '#5c1e21';
-            ctx.beginPath();
-            ctx.ellipse(256, 330, 100, 130, 0, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillStyle = '#5c1e21'; ctx.beginPath();
+            ctx.ellipse(256, 330, 100, 130, 0, 0, Math.PI * 2); ctx.fill();
 
             return new THREE.CanvasTexture(canvas);
         }
 
         // ==========================================
-        // INITIALIZATION FUNCTIONS
+        // INITIALIZATION
         // ==========================================
         function initEngine() {
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x000000);
-            scene.fog = new THREE.FogExp2(0x000000, 0.025);
+            scene.fog = new THREE.FogExp2(0x000000, 0.02);
             
             camera = new THREE.PerspectiveCamera(CONFIG.fov, window.innerWidth / window.innerHeight, CONFIG.near, CONFIG.far);
             renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
@@ -397,17 +371,17 @@
             container.appendChild(renderer.domElement);
 
             controls = new THREE.PointerLockControls(camera, document.body);
-            document.addEventListener('click', () => {
-                if(!gameOver) controls.lock();
-            });
+            document.addEventListener('click', () => { if(!gameOver) controls.lock(); });
 
             setupInputs();
-            setupFlashlight();
+            setupTorch();
+            setupAmbientAndMansionLights();
             buildMansion();
+            buildStairs();
             setupDownstairsExitDoor();
             spawnRandomKeys();
             setupMonster();
-            setupAmbientLights();
+
             window.addEventListener('resize', onWindowResize);
         }
 
@@ -423,9 +397,14 @@
                         if (canJump) velocity.y += CONFIG.jumpForce;
                         canJump = false;
                         break;
+                    case 'KeyF':
+                        isTorchTurnedOn = !isTorchTurnedOn;
+                        updateTorchState();
+                        break;
                     case 'KeyE': interactWithTarget(); break;
                 }
             });
+
             document.addEventListener('keyup', (e) => {
                 switch (e.code) {
                     case 'KeyW': case 'ArrowUp': moveState.forward = false; break;
@@ -437,50 +416,88 @@
             });
         }
 
-        function setupFlashlight() {
-            // Flashlight Spotlight attached to player camera
-            flashlightLight = new THREE.SpotLight(0xfff5ea, 3.5, 60, Math.PI / 6, 0.4, 1.0);
-            flashlightTarget = new THREE.Object3D();
+        function setupTorch() {
+            torchLight = new THREE.SpotLight(0xfffaea, 3.5, 60, Math.PI / 5, 0.4, 1.0);
+            torchTarget = new THREE.Object3D();
 
-            camera.add(flashlightLight);
-            camera.add(flashlightTarget);
+            camera.add(torchLight);
+            camera.add(torchTarget);
 
-            flashlightLight.position.set(0.3, -0.2, 0); // Position torch near bottom-right of view
-            flashlightTarget.position.set(0, 0, -5);    // Aim forward
+            torchLight.position.set(0.3, -0.2, 0);
+            torchTarget.position.set(0, 0, -5);
 
-            flashlightLight.target = flashlightTarget;
+            torchLight.target = torchTarget;
             scene.add(camera);
         }
 
-        function updateFlashlightTimer(delta) {
+        function setupAmbientAndMansionLights() {
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+
+            // Ceiling Mansion Lights
+            const lightPositions = [
+                [0, 11, 0], [-40, 11, -40], [40, 11, -40],
+                [-40, 11, 40], [40, 11, 40], [0, 23, 0]
+            ];
+
+            lightPositions.forEach(pos => {
+                const pLight = new THREE.PointLight(0xffddaa, 1.2, 50);
+                pLight.position.set(pos[0], pos[1], pos[2]);
+                scene.add(pLight);
+                mansionLights.push(pLight);
+            });
+        }
+
+        function updateTorchState() {
+            const torchStatusEl = document.getElementById('torch-toggle-status');
+
+            if (!isMansionPowerOn) {
+                // Flashlight is forcefully disabled during blackout
+                torchLight.intensity = 0.0;
+                torchStatusEl.innerText = "TORCH LIGHT: OFF (NO POWER)";
+                torchStatusEl.classList.add('warning');
+            } else if (isTorchTurnedOn) {
+                torchLight.intensity = 3.5;
+                torchStatusEl.innerText = "TORCH LIGHT: ON";
+                torchStatusEl.classList.remove('warning');
+            } else {
+                torchLight.intensity = 0.0;
+                torchStatusEl.innerText = "TORCH LIGHT: OFF";
+                torchStatusEl.classList.remove('warning');
+            }
+        }
+
+        function updatePowerCycleTimer(delta) {
             if (gameOver || !controls.isLocked) return;
 
-            flashlightTimer += delta;
-            const torchStatusEl = document.getElementById('torch-status');
+            powerCycleTimer += delta;
+            const cycleStatusEl = document.getElementById('light-cycle-status');
 
-            if (isFlashlightActive) {
-                const remainingOn = Math.max(0, Math.ceil(CONFIG.torchOnDuration - flashlightTimer));
-                torchStatusEl.innerText = `TORCH STATUS: ONLINE (${remainingOn}s)`;
-                torchStatusEl.classList.remove('warning');
+            if (isMansionPowerOn) {
+                const remainingLight = Math.max(0, Math.ceil(CONFIG.lightOnDuration - powerCycleTimer));
+                cycleStatusEl.innerText = `MANSION POWER: LIGHT (${remainingLight}s)`;
+                cycleStatusEl.classList.remove('warning');
 
-                if (flashlightTimer >= CONFIG.torchOnDuration) {
-                    isFlashlightActive = false;
-                    flashlightTimer = 0.0;
-                    flashlightLight.intensity = 0.0; // Cut off light
-                } else {
-                    flashlightLight.intensity = 3.5;
+                if (powerCycleTimer >= CONFIG.lightOnDuration) {
+                    // Turn darkness ON (10 seconds)
+                    isMansionPowerOn = false;
+                    powerCycleTimer = 0.0;
+                    ambientLight.intensity = 0.02;
+                    mansionLights.forEach(l => l.intensity = 0.0);
+                    updateTorchState();
                 }
             } else {
-                const remainingOff = Math.max(0, Math.ceil(CONFIG.torchOffDuration - flashlightTimer));
-                torchStatusEl.innerText = `TORCH STATUS: FAILURE (${remainingOff}s)`;
-                torchStatusEl.classList.add('warning');
+                const remainingDark = Math.max(0, Math.ceil(CONFIG.darkOffDuration - powerCycleTimer));
+                cycleStatusEl.innerText = `MANSION POWER: DARKNESS (${remainingDark}s)`;
+                cycleStatusEl.classList.add('warning');
 
-                if (flashlightTimer >= CONFIG.torchOffDuration) {
-                    isFlashlightActive = true;
-                    flashlightTimer = 0.0;
-                    flashlightLight.intensity = 3.5; // Turn back on
-                } else {
-                    flashlightLight.intensity = 0.0;
+                if (powerCycleTimer >= CONFIG.darkOffDuration) {
+                    // Turn lights back ON (1 minute)
+                    isMansionPowerOn = true;
+                    powerCycleTimer = 0.0;
+                    ambientLight.intensity = 0.8;
+                    mansionLights.forEach(l => l.intensity = 1.2);
+                    updateTorchState();
                 }
             }
         }
@@ -519,7 +536,7 @@
                 addCollisionBox(x, y, z, w, h, d);
             }
 
-            // Perimeter Walls
+            // Outer Perimeter Walls
             addWall(mapSize, wallHeight * 2, 2, 0, wallHeight, -mapSize/2);
             addWall(mapSize, wallHeight * 2, 2, 0, wallHeight, mapSize/2);
             addWall(2, wallHeight * 2, mapSize, -mapSize/2, wallHeight, 0);
@@ -585,7 +602,53 @@
         }
 
         // ==========================================
-        // DOOR & OBJECT SPAWNING
+        // BUILD STAIRS
+        // ==========================================
+        function buildStairs() {
+            const stairGroup = new THREE.Group();
+            const stairMat = new THREE.MeshStandardMaterial({ color: 0x4a2a18, roughness: 0.6 });
+            const railingMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.7, roughness: 0.3 });
+
+            const stepCount = 20;
+            const stairWidth = 8;
+            const totalHeight = 12.0;
+            const totalDepth = 20.0;
+            const stepHeight = totalHeight / stepCount;
+            const stepDepth = totalDepth / stepCount;
+
+            const startX = 0;
+            const startY = 0;
+            const startZ = -10;
+
+            for (let i = 0; i < stepCount; i++) {
+                const stepMesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(stairWidth, stepHeight, stepDepth),
+                    stairMat
+                );
+                const posY = startY + (i * stepHeight) + (stepHeight / 2);
+                const posZ = startZ - (i * stepDepth);
+                stepMesh.position.set(startX, posY, posZ);
+                stairGroup.add(stepMesh);
+            }
+
+            // Stair Railings
+            const leftRailing = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 0.5, totalDepth * 1.1),
+                railingMat
+            );
+            leftRailing.position.set(-stairWidth / 2, totalHeight / 2 + 1.5, startZ - (totalDepth / 2));
+            leftRailing.rotation.x = Math.atan2(totalHeight, totalDepth);
+            stairGroup.add(leftRailing);
+
+            const rightRailing = leftRailing.clone();
+            rightRailing.position.x = stairWidth / 2;
+            stairGroup.add(rightRailing);
+
+            scene.add(stairGroup);
+        }
+
+        // ==========================================
+        // EXIT DOOR & OBJECT SPAWNING
         // ==========================================
         function setupDownstairsExitDoor() {
             const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0x221105 });
@@ -600,15 +663,6 @@
             scene.add(exitDoorMesh);
 
             addCollisionBox(0, 4.0, -78.5, 6.0, 8.0, 1.0);
-
-            exitDoorLockGroup = new THREE.Group();
-            const lockColors = [0x0070ff, 0xff2222, 0xffd700, 0x22cc44];
-            lockColors.forEach((col, idx) => {
-                const lockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.2), new THREE.MeshStandardMaterial({ color: col }));
-                lockMesh.position.set(-1.2 + (idx * 0.8), 4.0, -78.2);
-                exitDoorLockGroup.add(lockMesh);
-            });
-            scene.add(exitDoorLockGroup);
 
             exitDoorMesh.userData = { type: 'door' };
             interactiveObjects.push(exitDoorMesh);
@@ -650,11 +704,6 @@
             monsterSprite.scale.set(4.5, 5.5, 1);
             monsterSprite.position.copy(monsterPosition);
             scene.add(monsterSprite);
-        }
-
-        function setupAmbientLights() {
-            // Very low ambient light to ensure complete dark environment when torch is off
-            scene.add(new THREE.AmbientLight(0xffffff, 0.05));
         }
 
         // ==========================================
@@ -707,24 +756,23 @@
             }
         }
 
-        function getNewPatrolTarget() {
-            monsterPatrolTarget.set((Math.random() - 0.5) * 120, monsterSprite.position.y, (Math.random() - 0.5) * 120);
-        }
-
         function updateMonsterAI(delta) {
             if (gameOver || !controls.isLocked) return;
 
             const playerPos = controls.getObject().position;
             if (checkLineOfSightToPlayer()) monsterChasing = true;
 
-            let targetPos = monsterChasing ? playerPos : monsterPatrolTarget;
+            let targetPos = monsterChasing ? playerPos : monsterWaypoints[currentWaypointIndex];
             let currentSpeed = monsterChasing ? CONFIG.monsterRunSpeed : CONFIG.monsterWalkSpeed;
 
             const dir = new THREE.Vector3().subVectors(targetPos, monsterSprite.position);
             dir.y = 0;
             const dist = dir.length();
 
-            if (!monsterChasing && dist < 3.0) getNewPatrolTarget();
+            // Monster Wandering behavior between waypoints
+            if (!monsterChasing && dist < 2.5) {
+                currentWaypointIndex = (currentWaypointIndex + 1) % monsterWaypoints.length;
+            }
 
             if (dist > 0.1) {
                 dir.normalize();
@@ -881,7 +929,7 @@
 
             const delta = Math.min(clock.getDelta(), 0.1);
             checkInteractions();
-            updateFlashlightTimer(delta);
+            updatePowerCycleTimer(delta);
             updateMonsterAI(delta);
 
             if (controls.isLocked && !gameOver) {
@@ -908,9 +956,10 @@
 
                 controls.getObject().position.y += (velocity.y * delta);
 
+                // Stairway Incline Physics
                 let currentFloorHeight = 0;
-                if (playerPos.z <= -10 && playerPos.z >= -28 && Math.abs(playerPos.x) <= 10) {
-                    currentFloorHeight = Math.min(1.0, Math.max(0.0, (-10 - playerPos.z) / 18)) * 12;
+                if (playerPos.z <= -10 && playerPos.z >= -30 && Math.abs(playerPos.x) <= 4) {
+                    currentFloorHeight = Math.min(1.0, Math.max(0.0, (-10 - playerPos.z) / 20)) * 12;
                 } else if (playerPos.y >= 10) {
                     currentFloorHeight = 12;
                 }
