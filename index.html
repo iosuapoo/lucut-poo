@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>20-Room Grand Mansion 3D with Furniture & Interactive Drawers</title>
+    <title>Furnished Grand Mansion 3D</title>
     <style>
         * {
             box-sizing: border-box;
@@ -88,27 +88,28 @@
     <div id="interaction-prompt">Press E to Open/Close</div>
     <div id="ui-layer">
         <div class="hud-card">
-            <h1>Furnished Mansion with Collisions & Interactivity</h1>
+            <h1>Cozy Furnished Mansion</h1>
             <p><strong>WASD / Arrows</strong> — Move</p>
             <p><strong>Shift</strong> — Sprint</p>
             <p><strong>Space</strong> — Jump</p>
-            <p><strong>E</strong> — Open / Close Drawers & Cupboards</p>
+            <p><strong>E</strong> — Open / Close Drawers</p>
             <p><strong>Click Screen</strong> — Lock Mouse & Look Around</p>
         </div>
     </div>
     <div id="canvas-container"></div>
 
     <script>
+        // Player height is set to 2.1m (~1.5x height of the 1.4m high drawers)
         const CONFIG = {
             fov: 75,
             near: 0.1,
-            far: 600,
-            playerHeight: 2.2,
-            playerRadius: 0.8,
-            walkSpeed: 12.0,
-            runSpeed: 24.0,
-            jumpForce: 10.0,
-            gravity: 25.0
+            far: 400,
+            playerHeight: 2.1,
+            playerRadius: 0.6,
+            walkSpeed: 10.0,
+            runSpeed: 18.0,
+            jumpForce: 9.0,
+            gravity: 24.0
         };
 
         let scene;
@@ -130,10 +131,8 @@
         let canJump = false;
         let flickeringLights = [];
 
-        // Collision boxes array
+        // Colliders and Interactivity
         let colliders = [];
-
-        // Interactive objects array
         let interactiveObjects = [];
         let raycaster = new THREE.Raycaster();
         let currentTarget = null;
@@ -184,7 +183,7 @@
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x020204);
-            scene.fog = new THREE.FogExp2(0x020204, 0.008);
+            scene.fog = new THREE.FogExp2(0x020204, 0.012);
             
             camera = new THREE.PerspectiveCamera(CONFIG.fov, window.innerWidth / window.innerHeight, CONFIG.near, CONFIG.far);
             renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
@@ -239,9 +238,9 @@
 
         function buildOptimizedMansion() {
             const woodTex = TextureFactory.createSolidWood();
-            woodTex.repeat.set(40, 40);
+            woodTex.repeat.set(20, 20);
             const wallTex = TextureFactory.createSolidWall();
-            wallTex.repeat.set(20, 5);
+            wallTex.repeat.set(10, 4);
             const marbleTex = TextureFactory.createSolidMarble();
 
             const matWood = new THREE.MeshLambertMaterial({ map: woodTex });
@@ -258,16 +257,20 @@
             const staticFurnitureGeometries = [];
             const accentGeometries = [];
 
-            const groundFloor = new THREE.BoxGeometry(400, 1, 400);
+            // Mansion bounds scaled down for smaller rooms (~20x20 per room)
+            const mapSize = 160;
+            const wallHeight = 12;
+
+            const groundFloor = new THREE.BoxGeometry(mapSize, 1, mapSize);
             groundFloor.translate(0, -0.5, 0);
             floorGeometries.push(groundFloor);
 
-            const secondFloor = new THREE.BoxGeometry(400, 1, 400);
-            secondFloor.translate(0, 19.5, 0);
+            const secondFloor = new THREE.BoxGeometry(mapSize, 1, mapSize);
+            secondFloor.translate(0, wallHeight - 0.5, 0);
             floorGeometries.push(secondFloor);
 
-            const ceiling = new THREE.BoxGeometry(400, 1, 400);
-            ceiling.translate(0, 40, 0);
+            const ceiling = new THREE.BoxGeometry(mapSize, 1, mapSize);
+            ceiling.translate(0, wallHeight * 2, 0);
             wallGeometries.push(ceiling);
 
             function addWall(w, h, d, x, y, z) {
@@ -275,44 +278,44 @@
                 geo.translate(x, y, z);
                 wallGeometries.push(geo);
                 
-                // Add collision bounding box
                 registerCollider(x - w/2, x + w/2, y - h/2, y + h/2, z - d/2, z + d/2);
             }
 
-            // Outer Perimeter Walls
-            addWall(400, 40, 2, 0, 20, -200);
-            addWall(400, 40, 2, 0, 20, 200);
-            addWall(2, 40, 400, -200, 20, 0);
-            addWall(2, 40, 400, 200, 20, 0);
+            // Exterior Perimeter Walls
+            addWall(mapSize, wallHeight * 2, 2, 0, wallHeight, -mapSize/2);
+            addWall(mapSize, wallHeight * 2, 2, 0, wallHeight, mapSize/2);
+            addWall(2, wallHeight * 2, mapSize, -mapSize/2, wallHeight, 0);
+            addWall(2, wallHeight * 2, mapSize, mapSize/2, wallHeight, 0);
 
-            // Ground Floor Walls - 20 Rooms Setup
-            const xCoords = [-150, -80, 80, 150];
-            const zCoords = [-140, -70, 0, 70, 140];
+            // Smaller room grid positions
+            const xCoords = [-60, -20, 20, 60];
+            const zCoords = [-55, -25, 5, 35, 65];
 
             xCoords.forEach(x => {
                 zCoords.forEach(z => {
-                    addWall(50, 20, 2, x, 10, z);
-                    addWall(2, 20, 50, x - 25, 10, z);
+                    // Ground floor inner walls with smaller dimensions
+                    addWall(24, wallHeight, 1.5, x, wallHeight/2, z);
+                    addWall(1.5, wallHeight, 24, x - 12, wallHeight/2, z);
                     
-                    // Upper floor walls
-                    addWall(50, 20, 2, x, 30, z);
-                    addWall(2, 20, 50, x - 25, 30, z);
+                    // Upper floor inner walls
+                    addWall(24, wallHeight, 1.5, x, wallHeight + wallHeight/2, z);
+                    addWall(1.5, wallHeight, 24, x - 12, wallHeight + wallHeight/2, z);
                 });
             });
 
-            // Helper function: Static Table
+            // Compact Table
             function addTable(x, y, z, width, depth, height) {
-                const top = new THREE.BoxGeometry(width, 0.4, depth);
+                const top = new THREE.BoxGeometry(width, 0.2, depth);
                 top.translate(x, y + height, z);
                 staticFurnitureGeometries.push(top);
 
-                const legW = 0.3;
+                const legW = 0.2;
                 const legH = height;
                 const legPositions = [
-                    [x - width/2 + 0.3, y + legH/2, z - depth/2 + 0.3],
-                    [x + width/2 - 0.3, y + legH/2, z - depth/2 + 0.3],
-                    [x - width/2 + 0.3, y + legH/2, z + depth/2 - 0.3],
-                    [x + width/2 - 0.3, y + legH/2, z + depth/2 - 0.3]
+                    [x - width/2 + 0.2, y + legH/2, z - depth/2 + 0.2],
+                    [x + width/2 - 0.2, y + legH/2, z - depth/2 + 0.2],
+                    [x - width/2 + 0.2, y + legH/2, z + depth/2 - 0.2],
+                    [x + width/2 - 0.2, y + legH/2, z + depth/2 - 0.2]
                 ];
 
                 legPositions.forEach(pos => {
@@ -321,79 +324,75 @@
                     staticFurnitureGeometries.push(leg);
                 });
 
-                registerCollider(x - width/2, x + width/2, y, y + height + 0.4, z - depth/2, z + depth/2);
+                registerCollider(x - width/2, x + width/2, y, y + height + 0.2, z - depth/2, z + depth/2);
             }
 
-            // Interactive Furniture Setup (Dresser with Sliding Drawers)
+            // Interactive Dresser with Drawers (Height: 1.4m so 2.1m player is 1.5x taller)
             function addInteractiveDresser(x, y, z, width, depth, height, drawersCount) {
-                // Dresser Main Outer Frame
                 const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), matDressers);
                 bodyMesh.position.set(x, y + height/2, z);
                 scene.add(bodyMesh);
 
                 registerCollider(x - width/2, x + width/2, y, y + height, z - depth/2, z + depth/2);
 
-                const drawerH = (height - 0.4) / drawersCount;
+                const drawerH = (height - 0.2) / drawersCount;
 
                 for (let i = 0; i < drawersCount; i++) {
                     const drawerGroup = new THREE.Group();
-                    const dY = y + 0.2 + (i * drawerH) + (drawerH / 2);
+                    const dY = y + 0.1 + (i * drawerH) + (drawerH / 2);
 
-                    const drawerBox = new THREE.Mesh(new THREE.BoxGeometry(width - 0.4, drawerH - 0.1, depth - 0.2), matDressers);
+                    const drawerBox = new THREE.Mesh(new THREE.BoxGeometry(width - 0.2, drawerH - 0.05, depth - 0.1), matDressers);
                     drawerBox.position.set(0, 0, 0);
                     drawerGroup.add(drawerBox);
 
-                    const handle = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.2), matGoldHandles);
+                    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 0.1), matGoldHandles);
                     handle.position.set(0, 0, depth/2 + 0.05);
                     drawerGroup.add(handle);
 
                     drawerGroup.position.set(x, dY, z);
                     scene.add(drawerGroup);
 
-                    // Setup object meta for interaction
                     drawerGroup.userData = {
                         isOpen: false,
                         originalZ: z,
-                        openZ: z + (depth * 0.75),
+                        openZ: z + (depth * 0.7),
                         type: 'drawer'
                     };
 
-                    // Add handle to raycasting check target
                     handle.userData.parentGroup = drawerGroup;
                     interactiveObjects.push(handle);
                 }
             }
 
-            // Helper function: Potted Plant
+            // Compact Potted Plant
             function addPottedPlant(x, y, z) {
-                const pot = new THREE.CylinderGeometry(1.0, 0.7, 2.0, 8);
-                pot.translate(x, y + 1.0, z);
+                const pot = new THREE.CylinderGeometry(0.6, 0.4, 1.2, 8);
+                pot.translate(x, y + 0.6, z);
                 staticFurnitureGeometries.push(pot);
 
-                const bush = new THREE.SphereGeometry(1.8, 8, 8);
-                bush.translate(x, y + 2.8, z);
+                const bush = new THREE.SphereGeometry(1.0, 8, 8);
+                bush.translate(x, y + 1.8, z);
                 accentGeometries.push(bush);
 
-                registerCollider(x - 1.2, x + 1.2, y, y + 3.5, z - 1.2, z + 1.2);
+                registerCollider(x - 0.7, x + 0.7, y, y + 2.2, z - 0.7, z + 0.7);
             }
 
-            // Room Furniture Coordinates Array
+            // Populate all rooms
             const roomCenters = [];
             xCoords.forEach(x => {
                 zCoords.forEach(z => {
                     roomCenters.push({x: x, z: z, y: 0});
-                    roomCenters.push({x: x, z: z, y: 20});
+                    roomCenters.push({x: x, z: z, y: wallHeight});
                 });
             });
 
-            // Populate all rooms
             roomCenters.forEach((room) => {
-                addTable(room.x, room.y, room.z, 6, 4, 2.5);
-                addInteractiveDresser(room.x, room.y, room.z - 10, 8, 3, 4, 3);
-                addPottedPlant(room.x - 10, room.y, room.z - 10);
+                addTable(room.x, room.y, room.z, 3.5, 2.5, 1.2);
+                addInteractiveDresser(room.x, room.y, room.z - 5, 4.0, 1.8, 1.4, 3);
+                addPottedPlant(room.x - 5, room.y, room.z - 5);
             });
 
-            // Merge static meshes
+            // Merge static geometries
             const mergedWalls = THREE.BufferGeometryUtils.mergeBufferGeometries(wallGeometries);
             scene.add(new THREE.Mesh(mergedWalls, matWall));
 
@@ -406,11 +405,12 @@
             const mergedAccents = THREE.BufferGeometryUtils.mergeBufferGeometries(accentGeometries);
             scene.add(new THREE.Mesh(mergedAccents, matPlantLeaves));
 
-            // Staircase
+            // Staircase scaled to smaller floor heights
             const stairGeometries = [];
-            for (let i = 0; i < 20; i++) {
-                const step = new THREE.BoxGeometry(30, 1.0, 2.0);
-                step.translate(0, 0.5 + i, -20.0 - (i * 2.0));
+            const stepsCount = 12;
+            for (let i = 0; i < stepsCount; i++) {
+                const step = new THREE.BoxGeometry(16, 1.0, 1.5);
+                step.translate(0, 0.5 + i, -10.0 - (i * 1.5));
                 stairGeometries.push(step);
             }
             const mergedStairs = THREE.BufferGeometryUtils.mergeBufferGeometries(stairGeometries);
@@ -429,17 +429,16 @@
         }
 
         function setupLights() {
-            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            const ambient = new THREE.AmbientLight(0xffffff, 0.45);
             scene.add(ambient);
 
-            // Add lighting across the mansion
-            const xCoords = [-150, -80, 80, 150];
-            const zCoords = [-140, -70, 0, 70, 140];
+            const xCoords = [-60, -20, 20, 60];
+            const zCoords = [-55, -25, 5, 35, 65];
 
             xCoords.forEach(x => {
                 zCoords.forEach(z => {
-                    createPointLightInstance(x, 18, z, 0xffaa44, 1.4, 80);
-                    createPointLightInstance(x, 38, z, 0xffaa44, 1.4, 80);
+                    createPointLightInstance(x, 10, z, 0xffaa44, 1.2, 40);
+                    createPointLightInstance(x, 22, z, 0xffaa44, 1.2, 40);
                 });
             });
         }
@@ -464,7 +463,7 @@
 
             const promptEl = document.getElementById('interaction-prompt');
 
-            if (intersects.length > 0 && intersects[0].distance < 8.0) {
+            if (intersects.length > 0 && intersects[0].distance < 6.0) {
                 currentTarget = intersects[0].object.userData.parentGroup;
                 promptEl.style.display = 'block';
                 promptEl.innerText = currentTarget.userData.isOpen ? "Press E to Close Drawer" : "Press E to Open Drawer";
@@ -481,10 +480,9 @@
                 
                 const targetZ = group.userData.isOpen ? group.userData.openZ : group.userData.originalZ;
                 
-                // Animate opening/closing simple lerp
                 const startZ = group.position.z;
                 const startTime = performance.now();
-                const duration = 300;
+                const duration = 250;
 
                 function animateMove(now) {
                     const elapsed = now - startTime;
@@ -545,33 +543,29 @@
                 if (moveState.forward || moveState.backward) velocity.z += moveVector.z * speed * 10.0 * delta;
                 if (moveState.left || moveState.right) velocity.x += moveVector.x * speed * 10.0 * delta;
 
-                // Handle collision movement along X & Z independently
                 const oldPosition = controls.getObject().position.clone();
 
-                // Test X axis movement
                 controls.moveRight(velocity.x * delta);
                 if (checkCollisions(controls.getObject().position)) {
                     controls.getObject().position.x = oldPosition.x;
                 }
 
-                // Test Z axis movement
                 controls.moveForward(velocity.z * delta);
                 if (checkCollisions(controls.getObject().position)) {
                     controls.getObject().position.z = oldPosition.z;
                 }
 
-                // Vertical floor/stair progression logic
                 controls.getObject().position.y += (velocity.y * delta);
                 const playerPos = controls.getObject().position;
 
                 let currentFloorHeight = 0;
 
-                // Staircase height calculations
-                if (playerPos.z <= -20 && playerPos.z >= -60 && Math.abs(playerPos.x) <= 15) {
-                    const stairProgress = Math.min(1.0, Math.max(0.0, (-20 - playerPos.z) / 40));
-                    currentFloorHeight = stairProgress * 20;
-                } else if (playerPos.y >= 18) {
-                    currentFloorHeight = 20;
+                // Stair progression logic
+                if (playerPos.z <= -10 && playerPos.z >= -28 && Math.abs(playerPos.x) <= 10) {
+                    const stairProgress = Math.min(1.0, Math.max(0.0, (-10 - playerPos.z) / 18));
+                    currentFloorHeight = stairProgress * 12;
+                } else if (playerPos.y >= 10) {
+                    currentFloorHeight = 12;
                 }
 
                 if (playerPos.y < currentFloorHeight + CONFIG.playerHeight) {
