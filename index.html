@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Mansion Escape — Bum Jump Attack</title>
+    <title>3D Mansion Escape — Humanoid Stalker</title>
     <style>
         * {
             box-sizing: border-box;
@@ -207,7 +207,7 @@
 
     <script>
         // ==========================================
-        // CONFIGURATION
+        // SYSTEM CONFIGURATION
         // ==========================================
         const CONFIG = {
             fov: 75,
@@ -217,9 +217,9 @@
             playerRadius: 0.8,
             walkSpeed: 10.0,
             runSpeed: 18.0,
-            monsterWalkSpeed: 6.0,
-            monsterRunSpeed: 14.0,
-            monsterRadius: 1.2,
+            monsterWalkSpeed: 5.5,
+            monsterRunSpeed: 13.0,
+            monsterRadius: 1.1,
             jumpForce: 9.0,
             gravity: 24.0,
             lightOnDuration: 60.0,
@@ -265,11 +265,15 @@
         let keysFound = { blue: false, red: false, yellow: false, green: false };
         let keyMeshes = [];
 
-        // Monster Body & Animation Variables
+        // Humanoid Monster Rig & Hierarchy
         let monsterGroup;
+        let monsterHeadGroup;
         let monsterBumMesh;
-        let monsterLeftLeg, monsterRightLeg;
-        let monsterLeftArm, monsterRightArm;
+        let monsterLeftArmGroup, monsterRightArmGroup;
+        let monsterLeftLegGroup, monsterRightLegGroup;
+        let monsterLeftForearm, monsterRightForearm;
+        let monsterLeftShin, monsterRightShin;
+
         let monsterPosition = new THREE.Vector3(30, 0, 30);
         let monsterWaypoints = [
             new THREE.Vector3(-40, 0, -40),
@@ -359,7 +363,7 @@
             buildStairs();
             setupDownstairsExitDoor();
             spawnRandomKeys();
-            buildMonster3DBody();
+            buildHumanoidMonsterBody();
 
             window.addEventListener('resize', onWindowResize);
         }
@@ -663,74 +667,209 @@
         }
 
         // ==========================================
-        // 3D PROCEDURAL MONSTER BUILD
+        // ANATOMICALLY DETAILED HUMANOID MONSTER
         // ==========================================
-        function buildMonster3DBody() {
+        function buildHumanoidMonsterBody() {
             monsterGroup = new THREE.Group();
 
-            const skinMat = new THREE.MeshStandardMaterial({ color: 0x2a2220, roughness: 0.7 });
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0022 });
+            // Materials
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xddb196, roughness: 0.6, metalness: 0.05 });
+            const hairMat = new THREE.MeshStandardMaterial({ color: 0x221a14, roughness: 0.9 });
+            const shirtMat = new THREE.MeshStandardMaterial({ color: 0x203520, roughness: 0.7 });
+            const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1b263b, roughness: 0.8 });
+            const shoeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
+            const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const pupilMat = new THREE.MeshBasicMaterial({ color: 0x880000 });
 
-            // Torso
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(2.2, 3.2, 1.5), skinMat);
-            torso.position.y = 3.6;
-            monsterGroup.add(torso);
+            // Torso / Shirt Assembly
+            const torsoGeo = new THREE.BoxGeometry(1.6, 2.2, 0.9);
+            const torsoMesh = new THREE.Mesh(torsoGeo, shirtMat);
+            torsoMesh.position.y = 3.6;
+            monsterGroup.add(torsoMesh);
 
-            // Head
-            const head = new THREE.Mesh(new THREE.SphereGeometry(1.0, 12, 12), skinMat);
-            head.position.y = 5.8;
-            monsterGroup.add(head);
+            // Neck
+            const neckMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.4, 12), skinMat);
+            neckMesh.position.y = 4.8;
+            monsterGroup.add(neckMesh);
 
-            // Glowing Eyes
-            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), eyeMat);
-            eyeL.position.set(-0.35, 5.9, 0.85);
-            monsterGroup.add(eyeL);
+            // Head Group
+            monsterHeadGroup = new THREE.Group();
+            monsterHeadGroup.position.set(0, 5.3, 0);
 
-            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), eyeMat);
-            eyeR.position.set(0.35, 5.9, 0.85);
-            monsterGroup.add(eyeR);
+            const skullMesh = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 16), skinMat);
+            monsterHeadGroup.add(skullMesh);
 
-            // PROMINENT BUM (2 Large Spheres At Back)
+            const hairMesh = new THREE.Mesh(new THREE.SphereGeometry(0.58, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2), hairMat);
+            hairMesh.position.y = 0.05;
+            monsterHeadGroup.add(hairMesh);
+
+            const noseMesh = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.18), skinMat);
+            noseMesh.position.set(0, -0.05, 0.55);
+            monsterHeadGroup.add(noseMesh);
+
+            // Left Eye
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), eyeWhiteMat);
+            eyeL.position.set(-0.2, 0.1, 0.48);
+            const pupilL = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), pupilMat);
+            pupilL.position.set(0, 0, 0.06);
+            eyeL.add(pupilL);
+            monsterHeadGroup.add(eyeL);
+
+            // Right Eye
+            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), eyeWhiteMat);
+            eyeR.position.set(0.2, 0.1, 0.48);
+            const pupilR = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), pupilMat);
+            pupilR.position.set(0, 0, 0.06);
+            eyeR.add(pupilR);
+            monsterHeadGroup.add(eyeR);
+
+            // Ears
+            const earL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.12), skinMat);
+            earL.position.set(-0.58, 0.05, 0);
+            monsterHeadGroup.add(earL);
+
+            const earR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.12), skinMat);
+            earR.position.set(0.58, 0.05, 0);
+            monsterHeadGroup.add(earR);
+
+            monsterGroup.add(monsterHeadGroup);
+
+            // Prominent Gluteal Structure (Pants Colored)
             monsterBumMesh = new THREE.Group();
-            const cheekL = new THREE.Mesh(new THREE.SphereGeometry(1.1, 16, 16), skinMat);
-            cheekL.position.set(-0.65, 0, 0);
+            const cheekL = new THREE.Mesh(new THREE.SphereGeometry(0.85, 16, 16), pantsMat);
+            cheekL.position.set(-0.5, 0, 0);
             monsterBumMesh.add(cheekL);
 
-            const cheekR = new THREE.Mesh(new THREE.SphereGeometry(1.1, 16, 16), skinMat);
-            cheekR.position.set(0.65, 0, 0);
+            const cheekR = new THREE.Mesh(new THREE.SphereGeometry(0.85, 16, 16), pantsMat);
+            cheekR.position.set(0.5, 0, 0);
             monsterBumMesh.add(cheekR);
 
-            monsterBumMesh.position.set(0, 2.5, -0.9);
+            monsterBumMesh.position.set(0, 2.6, -0.65);
             monsterGroup.add(monsterBumMesh);
 
-            // Arms
-            monsterLeftArm = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.8, 0.6), skinMat);
-            monsterLeftArm.position.set(-1.5, 3.5, 0);
-            monsterGroup.add(monsterLeftArm);
+            // Left Arm Group (Upper Arm Pivot)
+            monsterLeftArmGroup = new THREE.Group();
+            monsterLeftArmGroup.position.set(-1.0, 4.5, 0);
 
-            monsterRightArm = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.8, 0.6), skinMat);
-            monsterRightArm.position.set(1.5, 3.5, 0);
-            monsterGroup.add(monsterRightArm);
+            const upperArmL = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.2, 1.2, 10), shirtMat);
+            upperArmL.position.y = -0.6;
+            monsterLeftArmGroup.add(upperArmL);
 
-            // Legs
-            monsterLeftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.6, 0.8), skinMat);
-            monsterLeftLeg.position.set(-0.7, 1.3, 0);
-            monsterGroup.add(monsterLeftLeg);
+            monsterLeftForearm = new THREE.Group();
+            monsterLeftForearm.position.set(0, -1.2, 0);
+            const lowerArmL = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.16, 1.2, 10), skinMat);
+            lowerArmL.position.y = -0.6;
+            monsterLeftForearm.add(lowerArmL);
 
-            monsterRightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.6, 0.8), skinMat);
-            monsterRightLeg.position.set(0.7, 1.3, 0);
-            monsterGroup.add(monsterRightLeg);
+            const handL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.25), skinMat);
+            handL.position.y = -1.35;
+            monsterLeftForearm.add(handL);
+            monsterLeftArmGroup.add(monsterLeftForearm);
+            monsterGroup.add(monsterLeftArmGroup);
+
+            // Right Arm Group
+            monsterRightArmGroup = new THREE.Group();
+            monsterRightArmGroup.position.set(1.0, 4.5, 0);
+
+            const upperArmR = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.2, 1.2, 10), shirtMat);
+            upperArmR.position.y = -0.6;
+            monsterRightArmGroup.add(upperArmR);
+
+            monsterRightForearm = new THREE.Group();
+            monsterRightForearm.position.set(0, -1.2, 0);
+            const lowerArmR = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.16, 1.2, 10), skinMat);
+            lowerArmR.position.y = -0.6;
+            monsterRightForearm.add(lowerArmR);
+
+            const handR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.25), skinMat);
+            handR.position.y = -1.35;
+            monsterRightForearm.add(handR);
+            monsterRightArmGroup.add(monsterRightForearm);
+            monsterGroup.add(monsterRightArmGroup);
+
+            // Left Leg Group
+            monsterLeftLegGroup = new THREE.Group();
+            monsterLeftLegGroup.position.set(-0.5, 2.5, 0);
+
+            const thighL = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.24, 1.3, 10), pantsMat);
+            thighL.position.y = -0.65;
+            monsterLeftLegGroup.add(thighL);
+
+            monsterLeftShin = new THREE.Group();
+            monsterLeftShin.position.set(0, -1.3, 0);
+            const shinL = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.2, 1.2, 10), pantsMat);
+            shinL.position.y = -0.6;
+            monsterLeftShin.add(shinL);
+
+            const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 0.75), shoeMat);
+            shoeL.position.set(0, -1.3, 0.18);
+            monsterLeftShin.add(shoeL);
+            monsterLeftLegGroup.add(monsterLeftShin);
+            monsterGroup.add(monsterLeftLegGroup);
+
+            // Right Leg Group
+            monsterRightLegGroup = new THREE.Group();
+            monsterRightLegGroup.position.set(0.5, 2.5, 0);
+
+            const thighR = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.24, 1.3, 10), pantsMat);
+            thighR.position.y = -0.65;
+            monsterRightLegGroup.add(thighR);
+
+            monsterRightShin = new THREE.Group();
+            monsterRightShin.position.set(0, -1.3, 0);
+            const shinR = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.2, 1.2, 10), pantsMat);
+            shinR.position.y = -0.6;
+            monsterRightShin.add(shinR);
+
+            const shoeR = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 0.75), shoeMat);
+            shoeR.position.set(0, -1.3, 0.18);
+            monsterRightShin.add(shoeR);
+            monsterRightLegGroup.add(monsterRightShin);
+            monsterGroup.add(monsterRightLegGroup);
 
             monsterGroup.position.copy(monsterPosition);
             scene.add(monsterGroup);
         }
 
         // ==========================================
-        // MONSTER AI & BUM ATTACK JUMPSCARE
+        // COLLISION RESOLUTION ENGINE
+        // ==========================================
+        function resolveEntityCollision(entityPos, radius) {
+            const tempBox = new THREE.Box3();
+            let collided = false;
+
+            for (let i = 0; i < collisionBoxes.length; i++) {
+                const wall = collisionBoxes[i];
+                tempBox.setFromCenterAndSize(entityPos, new THREE.Vector3(radius * 2, CONFIG.playerHeight, radius * 2));
+
+                if (tempBox.intersectsBox(wall)) {
+                    collided = true;
+                    const closestPoint = new THREE.Vector3();
+                    wall.clampPoint(entityPos, closestPoint);
+
+                    const diff = new THREE.Vector3().subVectors(entityPos, closestPoint);
+                    diff.y = 0;
+                    const dist = diff.length();
+
+                    if (dist < radius && dist > 0) {
+                        const pushDist = radius - dist;
+                        diff.normalize().multiplyScalar(pushDist);
+                        entityPos.add(diff);
+                    } else if (dist === 0) {
+                        entityPos.x += 0.1;
+                        entityPos.z += 0.1;
+                    }
+                }
+            }
+            return collided;
+        }
+
+        // ==========================================
+        // MONSTER AI & MOVEMENT CONTROL
         // ==========================================
         function checkLineOfSightToPlayer() {
             const playerPos = controls.getObject().position;
-            const monsterPos = monsterGroup.position;
+            const monsterPos = monsterGroup.position.clone().add(new THREE.Vector3(0, 4.0, 0));
 
             const dir = new THREE.Vector3().subVectors(playerPos, monsterPos);
             const dist = dir.length();
@@ -741,26 +880,6 @@
 
             const intersects = sightRaycaster.intersectObjects(scene.children.filter(o => o.isMesh), true);
             return intersects.length === 0;
-        }
-
-        function handleCollision(entityPos, radius) {
-            const entityBox = new THREE.Box3();
-            for (let i = 0; i < collisionBoxes.length; i++) {
-                const wall = collisionBoxes[i];
-                entityBox.setFromCenterAndSize(entityPos, new THREE.Vector3(radius * 2, CONFIG.playerHeight, radius * 2));
-                
-                if (entityBox.intersectsBox(wall)) {
-                    const closestPoint = new THREE.Vector3();
-                    wall.clampPoint(entityPos, closestPoint);
-                    const overlap = new THREE.Vector3().subVectors(entityPos, closestPoint);
-                    overlap.y = 0;
-                    const dist = overlap.length();
-                    if (dist < radius && dist > 0) {
-                        overlap.normalize().multiplyScalar(radius - dist);
-                        entityPos.add(overlap);
-                    }
-                }
-            }
         }
 
         function speakPhrase() {
@@ -781,26 +900,54 @@
             let targetPos = monsterChasing ? playerPos : monsterWaypoints[currentWaypointIndex];
             let currentSpeed = monsterChasing ? CONFIG.monsterRunSpeed : CONFIG.monsterWalkSpeed;
 
-            const dir = new THREE.Vector3().subVectors(targetPos, monsterGroup.position);
-            dir.y = 0;
-            const dist = dir.length();
+            const desiredDir = new THREE.Vector3().subVectors(targetPos, monsterGroup.position);
+            desiredDir.y = 0;
+            const distToTarget = desiredDir.length();
 
-            if (!monsterChasing && dist < 2.5) {
+            if (!monsterChasing && distToTarget < 2.5) {
                 currentWaypointIndex = (currentWaypointIndex + 1) % monsterWaypoints.length;
             }
 
-            if (dist > 0.1) {
-                dir.normalize();
-                monsterGroup.position.addScaledVector(dir, currentSpeed * delta);
-                monsterGroup.lookAt(targetPos.x, monsterGroup.position.y, targetPos.z);
-                handleCollision(monsterGroup.position, CONFIG.monsterRadius);
+            if (distToTarget > 0.1) {
+                desiredDir.normalize();
 
-                // Walking Limb Animation
-                const walkCycle = Math.sin(performance.now() * 0.01 * (monsterChasing ? 2.0 : 1.0));
-                monsterLeftLeg.rotation.x = walkCycle * 0.5;
-                monsterRightLeg.rotation.x = -walkCycle * 0.5;
-                monsterLeftArm.rotation.x = -walkCycle * 0.5;
-                monsterRightArm.rotation.x = walkCycle * 0.5;
+                // Candidate Position with Collision Avoidance Sliding
+                const step = desiredDir.clone().multiplyScalar(currentSpeed * delta);
+                const nextPos = monsterGroup.position.clone().add(step);
+
+                // Axis Sliding Checks so the monster never penetrates wall bounds
+                const testPosX = monsterGroup.position.clone().add(new THREE.Vector3(step.x, 0, 0));
+                if (!resolveEntityCollision(testPosX, CONFIG.monsterRadius)) {
+                    monsterGroup.position.x = testPosX.x;
+                }
+
+                const testPosZ = monsterGroup.position.clone().add(new THREE.Vector3(0, 0, step.z));
+                if (!resolveEntityCollision(testPosZ, CONFIG.monsterRadius)) {
+                    monsterGroup.position.z = testPosZ.z;
+                }
+
+                resolveEntityCollision(monsterGroup.position, CONFIG.monsterRadius);
+
+                // Smooth facing rotation
+                const targetRotation = Math.atan2(desiredDir.x, desiredDir.z);
+                monsterGroup.rotation.y = THREE.MathUtils.lerp(monsterGroup.rotation.y, targetRotation, delta * 8.0);
+
+                // Anatomical Humanoid Walk Rig Animation
+                const timeFactor = performance.now() * 0.008 * (monsterChasing ? 1.8 : 1.0);
+                const legSwing = Math.sin(timeFactor) * 0.6;
+                const armSwing = Math.cos(timeFactor) * 0.5;
+
+                monsterLeftLegGroup.rotation.x = legSwing;
+                monsterRightLegGroup.rotation.x = -legSwing;
+                monsterLeftShin.rotation.x = Math.max(0, -legSwing * 0.8);
+                monsterRightShin.rotation.x = Math.max(0, legSwing * 0.8);
+
+                monsterLeftArmGroup.rotation.x = -armSwing;
+                monsterRightArmGroup.rotation.x = armSwing;
+                monsterLeftForearm.rotation.x = -Math.abs(armSwing * 0.5);
+                monsterRightForearm.rotation.x = -Math.abs(armSwing * 0.5);
+
+                monsterHeadGroup.rotation.y = Math.sin(timeFactor * 0.5) * 0.15;
             }
 
             const playerDist = monsterGroup.position.distanceTo(playerPos);
@@ -830,25 +977,21 @@
             killAnimationTimer += delta;
             const playerPos = controls.getObject().position;
 
-            // Phase 1: Monster turns backwards towards player (0s -> 0.4s)
             if (killAnimationTimer < 0.4) {
                 const targetRotY = Math.atan2(playerPos.x - monsterGroup.position.x, playerPos.z - monsterGroup.position.z) + Math.PI;
                 monsterGroup.rotation.y = THREE.MathUtils.lerp(monsterGroup.rotation.y, targetRotY, delta * 15.0);
             }
-            // Phase 2: Monster leaps high into air (0.4s -> 0.9s)
             else if (killAnimationTimer < 0.9) {
                 monsterGroup.position.y += delta * 25.0;
                 monsterGroup.position.x = THREE.MathUtils.lerp(monsterGroup.position.x, playerPos.x, delta * 8.0);
                 monsterGroup.position.z = THREE.MathUtils.lerp(monsterGroup.position.z, playerPos.z, delta * 8.0);
             }
-            // Phase 3: Monster slams down bum-first onto camera (0.9s -> 1.3s)
             else if (killAnimationTimer < 1.3) {
                 monsterGroup.position.y -= delta * 45.0;
                 monsterGroup.position.x = playerPos.x;
                 monsterGroup.position.z = playerPos.z;
                 camera.lookAt(monsterGroup.position.x, monsterGroup.position.y + 2.0, monsterGroup.position.z);
             }
-            // Phase 4: Screen blackout and Game Over
             else {
                 isKillAnimating = false;
                 triggerEndGame(false);
@@ -1020,7 +1163,7 @@
                 controls.moveForward(velocity.z * delta);
 
                 const playerPos = controls.getObject().position;
-                handleCollision(playerPos, CONFIG.playerRadius);
+                resolveEntityCollision(playerPos, CONFIG.playerRadius);
 
                 controls.getObject().position.y += (velocity.y * delta);
 
