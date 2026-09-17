@@ -3,1528 +3,501 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Farm Engine - Realistic Crop Geometry Edition</title>
+    <title>Advanced Tractor & Economy Simulator</title>
     <style>
-        /* ==========================================================================
-           1. GLOBAL RESET & CORE CONTAINER STYLING
-           ========================================================================== */
-        * {
-            box-sizing: border-box;
+        :root {
+            --bg-color: #1a252f;
+            --panel-bg: #2c3e50;
+            --accent-green: #27ae60;
+            --accent-orange: #e67e22;
+            --text-light: #ecf0f1;
+        }
+
+        body {
             margin: 0;
-            padding: 0;
-            user-select: none;
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #030712;
-            color: #f3f4f6;
-        }
-
-        #canvas-container {
-            width: 100%;
-            height: 100%;
-            display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-
-        /* ==========================================================================
-           2. HEADS-UP DISPLAY (HUD) INTERFACE
-           ========================================================================== */
-        #hud-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 24px;
-        }
-
-        .hud-top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            width: 100%;
-        }
-
-        .hud-panel {
-            background: rgba(15, 23, 42, 0.88);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 20px;
             padding: 20px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
-            pointer-events: auto;
-            min-width: 280px;
-            max-width: 340px;
-            transition: transform 0.2s ease, border-color 0.2s ease;
-        }
-
-        .hud-panel:hover {
-            border-color: rgba(56, 189, 248, 0.4);
-        }
-
-        .hud-title {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #94a3b8;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .hud-value-primary {
-            font-size: 36px;
-            font-weight: 900;
-            color: #4ade80;
-            letter-spacing: -1px;
-            text-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
-        }
-
-        .inventory-group {
+            background-color: var(--bg-color);
+            color: var(--text-light);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            margin-top: 10px;
+            align-items: center;
         }
 
-        .inventory-card {
+        h1 {
+            margin: 0 0 15px 0;
+            font-size: 24px;
+        }
+
+        #game-layout {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 14px;
+            gap: 20px;
+            background-color: var(--panel-bg);
+            padding: 20px;
             border-radius: 12px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            transition: all 0.2s ease;
-            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         }
 
-        .inventory-card:hover {
-            background: rgba(255, 255, 255, 0.08);
-            transform: translateX(2px);
-        }
-
-        .inventory-card.active {
-            background: rgba(56, 189, 248, 0.15);
-            border-color: #38bdf8;
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
-        }
-
-        .inventory-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .badge-time {
-            font-size: 10px;
-            font-weight: 700;
-            color: #fbbf24;
-            background: rgba(251, 191, 36, 0.15);
-            padding: 2px 6px;
-            border-radius: 6px;
-            border: 1px solid rgba(251, 191, 36, 0.3);
-        }
-
-        /* ==========================================================================
-           3. STATUS INDICATORS & RETICLE
-           ========================================================================== */
-        #mode-tag {
-            background: rgba(15, 23, 42, 0.88);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            color: #38bdf8;
-            padding: 10px 22px;
-            border-radius: 9999px;
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-        }
-
-        #crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 10px;
-            height: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            border: 2px solid rgba(0, 0, 0, 0.6);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            z-index: 10;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-        }
-
-        #prompt-box {
-            position: absolute;
-            bottom: 40px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.92);
-            backdrop-filter: blur(16px);
-            border: 2px solid #38bdf8;
-            color: #ffffff;
-            padding: 16px 32px;
-            border-radius: 9999px;
-            font-size: 16px;
-            font-weight: 700;
-            display: none;
-            box-shadow: 0 0 30px rgba(56, 189, 248, 0.4);
-            animation: pulseGlow 2s infinite ease-in-out;
-            z-index: 20;
-            pointer-events: none;
-            text-align: center;
-            letter-spacing: 0.5px;
-        }
-
-        @keyframes pulseGlow {
-            0%, 100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 25px rgba(56, 189, 248, 0.4); }
-            50% { transform: translateX(-50%) scale(1.03); box-shadow: 0 0 40px rgba(56, 189, 248, 0.7); }
-        }
-
-        /* ==========================================================================
-           4. MINI-MAP OVERLAY
-           ========================================================================== */
-        #minimap-container {
-            width: 160px;
-            height: 160px;
-            border-radius: 50%;
-            border: 3px solid rgba(255, 255, 255, 0.2);
-            overflow: hidden;
-            background: rgba(15, 23, 42, 0.9);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+        #canvas-wrapper {
             position: relative;
         }
 
-        #minimap-canvas {
-            width: 100%;
-            height: 100%;
+        canvas {
+            border: 4px solid var(--accent-green);
+            border-radius: 8px;
+            background-color: #558b2f;
             display: block;
         }
 
-        /* ==========================================================================
-           5. SHOP & INTERACTION MODAL DIALOGS
-           ========================================================================== */
-        .modal-backdrop {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(3, 7, 18, 0.75);
-            backdrop-filter: blur(12px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-        }
-
-        .modal-window {
-            background: rgba(15, 23, 42, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 28px;
-            padding: 32px;
-            width: 90%;
-            max-width: 680px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
+        #sidebar {
+            width: 320px;
             display: flex;
             flex-direction: column;
-            gap: 24px;
+            gap: 15px;
+            max-height: 500px;
+            overflow-y: auto;
         }
 
-        .modal-header {
+        .card {
+            background-color: #1a252f;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid var(--accent-orange);
+        }
+
+        .card h3 {
+            margin: 0 0 10px 0;
+            color: #f39c12;
+            font-size: 16px;
+        }
+
+        .stat-group {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding-bottom: 16px;
+            margin-bottom: 5px;
+            font-size: 14px;
         }
 
-        .modal-header h2 {
-            font-size: 22px;
-            font-weight: 800;
-            color: #f8fafc;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .modal-close {
-            background: rgba(255, 255, 255, 0.05);
-            border: none;
-            color: #94a3b8;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .modal-close:hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: #ffffff;
-        }
-
-        .shop-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-        }
-
-        .shop-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
-            padding: 20px;
+        .npc-card {
+            background: #34495e;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            text-align: center;
-            gap: 10px;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            gap: 5px;
         }
 
-        .shop-card:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: #38bdf8;
-            transform: translateY(-4px);
+        .npc-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
         }
 
-        .shop-card .icon-wrap {
-            font-size: 42px;
-            line-height: 1;
-            margin-bottom: 4px;
-        }
-
-        .shop-card h3 {
-            font-size: 16px;
-            font-weight: 700;
-        }
-
-        .shop-card .price {
-            font-size: 18px;
-            font-weight: 800;
-            color: #4ade80;
-        }
-
-        .shop-card .growth-tag {
-            font-size: 11px;
-            color: #fbbf24;
-            background: rgba(251, 191, 36, 0.12);
-            padding: 4px 8px;
-            border-radius: 8px;
-        }
-
-        .btn-action {
-            background: #0284c7;
-            color: #ffffff;
+        button {
+            padding: 8px 12px;
+            background-color: var(--accent-green);
+            color: white;
             border: none;
-            padding: 12px 20px;
-            border-radius: 14px;
-            font-weight: 700;
-            font-size: 14px;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.2s ease;
-            margin-top: 6px;
-        }
-
-        .btn-action:hover {
-            background: #0369a1;
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
-        }
-
-        /* ==========================================================================
-           6. CONTROLS GUIDE PANEL
-           ========================================================================== */
-        #controls-panel {
-            position: absolute;
-            bottom: 24px;
-            right: 24px;
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 16px 20px;
-            border-radius: 16px;
-            color: #94a3b8;
-            font-size: 12px;
-            z-index: 10;
-            pointer-events: none;
-            line-height: 1.8;
-        }
-
-        #controls-panel strong {
-            color: #f8fafc;
-            font-weight: 700;
-        }
-
-        .key-cap {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #38bdf8;
-            padding: 2px 6px;
             border-radius: 4px;
             font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #2ecc71;
+        }
+
+        button:disabled {
+            background-color: #7f8c8d;
+            cursor: not-allowed;
+        }
+
+        .vehicle-selector {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .vehicle-btn {
+            flex: 1;
             font-size: 11px;
+            padding: 5px;
         }
 
-        /* Customer Speech Bubbles floating elements */
-        .customer-bubble {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.95);
-            color: #0f172a;
-            padding: 8px 14px;
-            border-radius: 14px;
-            font-weight: 800;
-            font-size: 13px;
-            pointer-events: none;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-            display: none;
-            transform: translate(-50%, -100%);
-            z-index: 15;
-            border: 2px solid #22c55e;
-            white-space: nowrap;
-        }
-
-        .customer-bubble::after {
-            content: '';
-            position: absolute;
-            bottom: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-width: 8px 8px 0;
-            border-style: solid;
-            border-color: rgba(255, 255, 255, 0.95) transparent;
-            display: block;
-            width: 0;
+        .controls-hint {
+            font-size: 12px;
+            color: #bdc3c7;
+            margin-top: 10px;
         }
     </style>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <div id="canvas-container"></div>
+    <h1>Farm Logistics & Tractor Engine</h1>
 
-    <div id="hud-layer">
-        <div class="hud-top-bar">
-            <div style="display: flex; gap: 16px;">
-                <div class="hud-panel">
-                    <div class="hud-title">💰 Available Funds</div>
-                    <div class="hud-value-primary" id="money-display">$100</div>
-                </div>
-
-                <div class="hud-panel">
-                    <div class="hud-title">🌱 Seed Pouch (Keys 1-3)</div>
-                    <div class="inventory-group" id="seeds-inventory"></div>
-                </div>
-
-                <div class="hud-panel">
-                    <div class="hud-title">🌾 Harvest Storage</div>
-                    <div class="inventory-group" id="crops-inventory"></div>
-                </div>
-            </div>
-
-            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 12px;">
-                <div id="mode-tag">Mode: On Foot</div>
-                <div id="minimap-container">
-                    <canvas id="minimap-canvas" width="160" height="160"></canvas>
-                </div>
-            </div>
+    <div id="game-layout">
+        <div id="canvas-wrapper">
+            <canvas id="gameCanvas" width="700" height="500"></canvas>
         </div>
-    </div>
 
-    <div id="crosshair"></div>
-    <div id="prompt-box">Press [E] to Interact</div>
-    <div id="customer-bubbles"></div>
-
-    <div id="controls-panel">
-        <strong>Engine Control Matrix:</strong><br>
-        <span class="key-cap">W</span> Move Forward &nbsp;|&nbsp; <span class="key-cap">S</span> Move Backward<br>
-        <span class="key-cap">A</span> / <span class="key-cap">D</span> Steer Left / Right<br>
-        <span class="key-cap">E</span> / <span class="key-cap">Space</span> Interact / Plant / Harvest / Shop<br>
-        <span class="key-cap">Q</span> / <span class="key-cap">F</span> Enter / Exit Tractor<br>
-        <span class="key-cap">1</span>, <span class="key-cap">2</span>, <span class="key-cap">3</span> Cycle Selected Seed
-    </div>
-
-    <div class="modal-backdrop" id="seed-shop-modal">
-        <div class="modal-window">
-            <div class="modal-header">
-                <h2>🌱 Agricultural Seed Supplier</h2>
-                <button class="modal-close" onclick="closeModals()">&times;</button>
+        <div id="sidebar">
+            <div class="card">
+                <h3>Farm Statistics</h3>
+                <div class="stat-group"><span>Money:</span> <span id="money-val">$100</span></div>
+                <div class="stat-group"><span>Reputation:</span> <span id="rep-val">0</span></div>
             </div>
-            <div class="shop-grid">
-                <div class="shop-card">
-                    <div class="icon-wrap">🌾</div>
-                    <h3>Wheat Seed</h3>
-                    <div class="price">$10</div>
-                    <div class="growth-tag">⏱️ Fast Growth (5s)</div>
-                    <button class="btn-action" onclick="buySeed('wheat', 10)">Purchase</button>
+
+            <div class="card">
+                <h3>Vehicle Config</h3>
+                <div class="stat-group"><span>Type:</span> <span id="vehicle-type">Utility Tractor</span></div>
+                <div class="stat-group"><span>Speed:</span> <span id="vehicle-speed">3.0</span></div>
+                <div class="vehicle-selector">
+                    <button class="vehicle-btn" onclick="setVehicle('utility')">Utility</button>
+                    <button class="vehicle-btn" onclick="setVehicle('heavy')">Heavy Duty</button>
+                    <button class="vehicle-btn" onclick="setVehicle('vintage')">Vintage</button>
                 </div>
-                <div class="shop-card">
-                    <div class="icon-wrap">🌽</div>
-                    <h3>Corn Seed</h3>
-                    <div class="price">$25</div>
-                    <div class="growth-tag">⏱️ Medium Growth (15s)</div>
-                    <button class="btn-action" onclick="buySeed('corn', 25)">Purchase</button>
-                </div>
-                <div class="shop-card">
-                    <div class="icon-wrap">🎃</div>
-                    <h3>Pumpkin Seed</h3>
-                    <div class="price">$60</div>
-                    <div class="growth-tag">⏱️ Slow Growth (35s)</div>
-                    <button class="btn-action" onclick="buySeed('pumpkin', 60)">Purchase</button>
-                </div>
+            </div>
+
+            <div class="card">
+                <h3>Inventory</h3>
+                <div id="inventory-list"></div>
+            </div>
+
+            <div class="card">
+                <h3>Town Requests</h3>
+                <div id="npc-list"></div>
             </div>
         </div>
     </div>
 
     <script>
-        /* ==========================================================================
-           7. GAME STATE & EXPONENTIAL TIMERS
-           ========================================================================== */
-        const gameState = {
+        // =================================================================
+        // DATA STRUCTURES & CONFIGURATION
+        // =================================================================
+        const ITEMS = {
+            WHEAT: { name: 'Wheat', color: '#f1c40f', basePrice: 15 },
+            CORN: { name: 'Corn', color: '#e67e22', basePrice: 20 },
+            FERTILIZER: { name: 'Fertilizer', color: '#8e44ad', basePrice: 35 },
+            TOOLS: { name: 'Tools', color: '#7f8c8d', basePrice: 50 },
+            FUEL: { name: 'Fuel', color: '#e74c3c', basePrice: 40 }
+        };
+
+        const VEHICLES = {
+            utility: { name: 'Utility Tractor', speed: 3.2, color: '#c0392b', rearWheelR: 16, frontWheelR: 8, bodyLength: 36 },
+            heavy: { name: 'Heavy Duty', speed: 2.4, color: '#27ae60', rearWheelR: 22, frontWheelR: 11, bodyLength: 46 },
+            vintage: { name: 'Vintage Row-Crop', speed: 3.8, color: '#d35400', rearWheelR: 18, frontWheelR: 6, bodyLength: 32 }
+        };
+
+        const state = {
             money: 100,
-            seeds: { wheat: 5, corn: 1, pumpkin: 0 },
-            crops: { wheat: 0, corn: 0, pumpkin: 0 },
-            selectedSeed: 'wheat',
-            isDriving: false
+            reputation: 0,
+            currentVehicle: 'utility',
+            inventory: {
+                Wheat: 5,
+                Corn: 3,
+                Fertilizer: 2,
+                Tools: 1,
+                Fuel: 2
+            }
         };
 
-        // Seed Quality Tier System: Higher tier seeds cost more, sell for more, and take longer to grow
-        const cropData = {
-            wheat: { name: 'Wheat', growTime: 5000, value: 25, icon: '🌾' },
-            corn: { name: 'Corn', growTime: 15000, value: 80, icon: '🌽' },
-            pumpkin: { name: 'Pumpkin', growTime: 35000, value: 240, icon: '🎃' }
+        // =================================================================
+        // TRACTOR OBJECT & PHYSICS
+        // =================================================================
+        const tractor = {
+            x: 150,
+            y: 250,
+            angle: 0,
+            vx: 0,
+            vy: 0,
+            steering: 0,
+            enginePower: 0,
+            exhaustParticles: []
         };
 
-        let scene, camera, renderer, clock;
-        let player, playerBody, vehicle, carBody, wheels = [];
-        let sunLight, ambientLight;
-        let keys = {};
-        let activeZone = null;
+        // =================================================================
+        // NPC DATA & AI
+        // =================================================================
+        const npcs = [
+            { id: 1, name: 'Farmer Bob', x: 550, y: 100, itemNeeded: 'Fertilizer', reward: 50 },
+            { id: 2, name: 'Trader Alice', x: 600, y: 280, itemNeeded: 'Wheat', reward: 25 },
+            { id: 3, name: 'Mechanic Dave', x: 520, y: 420, itemNeeded: 'Tools', reward: 75 },
+            { id: 4, name: 'Rancher Emily', x: 180, y: 410, itemNeeded: 'Corn', reward: 30 }
+        ];
 
-        // Bounding collision volumes for physics engine
-        const colliders = [];
-        const farmPlots = [];
-        const customers = [];
-        const particles = [];
-        let seedStoreZone, popupStoreZone;
-
-        let minimapCtx;
-
-        /* ==========================================================================
-           8. CORE INITIALIZATION ENGINE
-           ========================================================================== */
-        function init() {
-            const container = document.getElementById('canvas-container');
-
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87ceeb);
-            scene.fog = new THREE.FogExp2(0x87ceeb, 0.005);
-
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            clock = new THREE.Clock();
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            container.appendChild(renderer.domElement);
-
-            // Lighting setup
-            ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-            scene.add(ambientLight);
-
-            sunLight = new THREE.DirectionalLight(0xfffbeb, 1.0);
-            sunLight.position.set(120, 150, 80);
-            sunLight.castShadow = true;
-            sunLight.shadow.mapSize.width = 2048;
-            sunLight.shadow.mapSize.height = 2048;
-            sunLight.shadow.camera.near = 0.5;
-            sunLight.shadow.camera.far = 400;
-            const d = 140;
-            sunLight.shadow.camera.left = -d;
-            sunLight.shadow.camera.right = d;
-            sunLight.shadow.camera.top = d;
-            sunLight.shadow.camera.bottom = -d;
-            scene.add(sunLight);
-
-            // Setup Minimap
-            const minimapCanvas = document.getElementById('minimap-canvas');
-            minimapCtx = minimapCanvas.getContext('2d');
-
-            // Build World
-            createEnvironment();
-            createRoadsAndPaths();
-            createFarmPlots();
-            createSeedStore();
-            createPopupStore();
-            createParticleSystem();
-
-            createPlayer();
-            createVehicle();
-
-            // Event Listeners
-            window.addEventListener('resize', onWindowResize);
-            window.addEventListener('keydown', onKeyDown);
-            window.addEventListener('keyup', onKeyUp);
-
-            updateHUD();
-
-            // Customer Spawning Cycle
-            setInterval(spawnCustomer, 6000);
-            spawnCustomer();
-
-            // Start Main Engine Loop
-            animate();
-        }
-
-        /* ==========================================================================
-           9. WORLD ENVIRONMENT & COLLIDER REGISTRATION
-           ========================================================================== */
-        function createEnvironment() {
-            // Ground Plane
-            const groundGeo = new THREE.PlaneGeometry(500, 500, 32, 32);
-            const groundMat = new THREE.MeshStandardMaterial({ color: 0x2e6f40, roughness: 0.9, metalness: 0.1 });
-            const ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.rotation.x = -Math.PI / 2;
-            ground.receiveShadow = true;
-            scene.add(ground);
-
-            // Scattered Trees with hard collision boxes
-            for (let i = 0; i < 110; i++) {
-                const x = (Math.random() - 0.5) * 420;
-                const z = (Math.random() - 0.5) * 420;
-                if (Math.abs(x) < 45 && Math.abs(z) < 160) continue;
-                createTree(x, z);
-            }
-
-            createFences();
-        }
-
-        function createTree(x, z) {
-            const group = new THREE.Group();
-            
-            const trunkGeo = new THREE.CylinderGeometry(0.7, 0.9, 4.5, 8);
-            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3d2314, roughness: 0.9 });
-            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-            trunk.position.y = 2.25;
-            trunk.castShadow = true;
-            group.add(trunk);
-
-            const leavesGeo = new THREE.ConeGeometry(3.8, 8, 8);
-            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1a5328, roughness: 0.8 });
-            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
-            leaves.position.y = 6.5;
-            leaves.castShadow = true;
-            group.add(leaves);
-
-            group.position.set(x, 0, z);
-            scene.add(group);
-
-            colliders.push({
-                box: new THREE.Box3().setFromCenterAndSize(
-                    new THREE.Vector3(x, 2.25, z),
-                    new THREE.Vector3(1.6, 4.5, 1.6)
-                )
-            });
-        }
-
-        function createFences() {
-            const fenceMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
-            for (let x = -45; x <= -10; x += 5) {
-                if (x === -25) continue;
-                const postGeo = new THREE.BoxGeometry(0.4, 2, 0.4);
-                const post = new THREE.Mesh(postGeo, fenceMat);
-                post.position.set(x, 1, -30);
-                post.castShadow = true;
-                scene.add(post);
-
-                colliders.push({
-                    box: new THREE.Box3().setFromCenterAndSize(
-                        new THREE.Vector3(x, 1, -30),
-                        new THREE.Vector3(0.5, 2, 0.5)
-                    )
-                });
-            }
-        }
-
-        function createRoadsAndPaths() {
-            const roadGeo = new THREE.PlaneGeometry(16, 360);
-            const roadMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.8 });
-            const road = new THREE.Mesh(roadGeo, roadMat);
-            road.rotation.x = -Math.PI / 2;
-            road.position.set(0, 0.02, 0);
-            road.receiveShadow = true;
-            scene.add(road);
-
-            const lineGeo = new THREE.PlaneGeometry(0.5, 360);
-            const lineMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
-            const line = new THREE.Mesh(lineGeo, lineMat);
-            line.rotation.x = -Math.PI / 2;
-            line.position.set(0, 0.03, 0);
-            scene.add(line);
-        }
-
-        /* ==========================================================================
-           10. REALISTIC 3D CROP MESH GENERATORS
-           ========================================================================== */
-        function createWheatMesh() {
-            const wheatGroup = new THREE.Group();
-            const stalkMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.6 });
-            const headMat = new THREE.MeshStandardMaterial({ color: 0xca8a04, roughness: 0.5 });
-
-            // Create a dense cluster of realistic wheat stalks
-            for (let i = 0; i < 9; i++) {
-                const singleStalk = new THREE.Group();
-                const offsetX = (Math.random() - 0.5) * 1.8;
-                const offsetZ = (Math.random() - 0.5) * 1.8;
-
-                // Thin stalk
-                const stalkGeo = new THREE.CylinderGeometry(0.03, 0.04, 2.2, 6);
-                const stalk = new THREE.Mesh(stalkGeo, stalkMat);
-                stalk.position.y = 1.1;
-                stalk.castShadow = true;
-                singleStalk.add(stalk);
-
-                // Grain husk seed head
-                const headGeo = new THREE.ConeGeometry(0.12, 0.8, 6);
-                const head = new THREE.Mesh(headGeo, headMat);
-                head.position.y = 2.4;
-                head.castShadow = true;
-                singleStalk.add(head);
-
-                singleStalk.position.set(offsetX, 0, offsetZ);
-                singleStalk.rotation.z = (Math.random() - 0.5) * 0.15;
-                singleStalk.rotation.x = (Math.random() - 0.5) * 0.15;
-                wheatGroup.add(singleStalk);
-            }
-            return wheatGroup;
-        }
-
-        function createCornMesh() {
-            const cornGroup = new THREE.Group();
-            const stalkMat = new THREE.MeshStandardMaterial({ color: 0x4d7c0f, roughness: 0.7 });
-            const huskMat = new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: 0.6 });
-            const earMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3 });
-
-            // Main central stalk
-            const mainStalkGeo = new THREE.CylinderGeometry(0.1, 0.15, 3.8, 8);
-            const mainStalk = new THREE.Mesh(mainStalkGeo, stalkMat);
-            mainStalk.position.y = 1.9;
-            mainStalk.castShadow = true;
-            cornGroup.add(mainStalk);
-
-            // Broad foliage leaves
-            for (let i = 0; i < 5; i++) {
-                const leafGeo = new THREE.BoxGeometry(0.12, 1.4, 0.02);
-                const leaf = new THREE.Mesh(leafGeo, stalkMat);
-                const angle = (i / 5) * Math.PI * 2;
-                leaf.position.set(Math.cos(angle) * 0.3, 1.2 + (i * 0.4), Math.sin(angle) * 0.3);
-                leaf.rotation.y = angle;
-                leaf.rotation.z = Math.PI / 4;
-                leaf.castShadow = true;
-                cornGroup.add(leaf);
-            }
-
-            // Visible corn cobs growing along stalk
-            [1.8, 2.6].forEach((heightPos, idx) => {
-                const cobGroup = new THREE.Group();
-                
-                // Yellow ear
-                const earGeo = new THREE.CylinderGeometry(0.14, 0.12, 0.9, 10);
-                const ear = new THREE.Mesh(earGeo, earMat);
-                ear.castShadow = true;
-                cobGroup.add(ear);
-
-                // Leaf husk wrapping
-                const huskGeo = new THREE.ConeGeometry(0.18, 0.8, 8);
-                const husk = new THREE.Mesh(huskGeo, huskMat);
-                husk.position.y = -0.1;
-                husk.rotation.x = Math.PI;
-                cobGroup.add(husk);
-
-                cobGroup.position.set(idx % 2 === 0 ? 0.22 : -0.22, heightPos, 0);
-                cobGroup.rotation.z = idx % 2 === 0 ? -Math.PI / 6 : Math.PI / 6;
-                cornGroup.add(cobGroup);
-            });
-
-            return cornGroup;
-        }
-
-        function createPumpkinMesh() {
-            const pumpkinGroup = new THREE.Group();
-            const skinMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.5 });
-            const stemMat = new THREE.MeshStandardMaterial({ color: 0x3f6212, roughness: 0.8 });
-
-            // Pumpkin body constructed out of merged spherical lobes for ribbed texture
-            const bodyGroup = new THREE.Group();
-            const lobeCount = 7;
-            for (let i = 0; i < lobeCount; i++) {
-                const lobeGeo = new THREE.SphereGeometry(0.8, 16, 16);
-                lobeGeo.scale(1.0, 0.75, 0.65);
-                const lobe = new THREE.Mesh(lobeGeo, skinMat);
-                const angle = (i / lobeCount) * Math.PI * 2;
-                lobe.position.set(Math.cos(angle) * 0.22, 0.55, Math.sin(angle) * 0.22);
-                lobe.rotation.y = angle;
-                lobe.castShadow = true;
-                bodyGroup.add(lobe);
-            }
-            pumpkinGroup.add(bodyGroup);
-
-            // Curved green stem
-            const stemGeo = new THREE.CylinderGeometry(0.08, 0.12, 0.6, 8);
-            const stem = new THREE.Mesh(stemGeo, stemMat);
-            stem.position.set(0, 1.05, 0);
-            stem.rotation.z = Math.PI / 8;
-            stem.castShadow = true;
-            pumpkinGroup.add(stem);
-
-            return pumpkinGroup;
-        }
-
-        /* ==========================================================================
-           11. PLAYER & VEHICLE CREATION
-           ========================================================================== */
-        function createPlayer() {
-            player = new THREE.Group();
-
-            const bodyGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.8, 16);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.3 });
-            playerBody = new THREE.Mesh(bodyGeo, bodyMat);
-            playerBody.position.y = 0.9;
-            playerBody.castShadow = true;
-            player.add(playerBody);
-
-            const headGeo = new THREE.SphereGeometry(0.4, 16, 16);
-            const headMat = new THREE.MeshStandardMaterial({ color: 0xfcd34d });
-            const head = new THREE.Mesh(headGeo, headMat);
-            head.position.y = 2.0;
-            head.castShadow = true;
-            player.add(head);
-
-            player.position.set(-15, 0, 10);
-            scene.add(player);
-
-            player.userData = {
-                speed: 0.24,
-                rotationSpeed: 0.05,
-                angle: 0,
-                radius: 0.6
+        // =================================================================
+        // PARTICLE SYSTEM (EXHAUST SMOKE)
+        // =================================================================
+        function createExhaustParticle(x, y) {
+            return {
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: -Math.random() * 1.2 - 0.5,
+                size: Math.random() * 4 + 2,
+                alpha: 0.6,
+                life: 1.0
             };
         }
 
-        function createVehicle() {
-            vehicle = new THREE.Group();
+        function updateParticles() {
+            for (let i = tractor.exhaustParticles.length - 1; i >= 0; i--) {
+                const p = tractor.exhaustParticles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.size += 0.15;
+                p.alpha -= 0.02;
+                p.life -= 0.02;
 
-            const bodyGeo = new THREE.BoxGeometry(3.0, 1.3, 5.2);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, roughness: 0.3, metalness: 0.3 });
-            carBody = new THREE.Mesh(bodyGeo, bodyMat);
-            carBody.position.y = 1.1;
-            carBody.castShadow = true;
-            vehicle.add(carBody);
-
-            const cabinGeo = new THREE.BoxGeometry(2.5, 1.0, 2.6);
-            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1 });
-            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
-            cabin.position.set(0, 1.95, -0.3);
-            cabin.castShadow = true;
-            vehicle.add(cabin);
-
-            const wheelGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.45, 16);
-            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.9 });
-            wheelGeo.rotateZ(Math.PI / 2);
-
-            const wheelPositions = [
-                [-1.5, 0.55, 1.7],
-                [1.5, 0.55, 1.7],
-                [-1.5, 0.55, -1.7],
-                [1.5, 0.55, -1.7]
-            ];
-
-            wheels = [];
-            wheelPositions.forEach(pos => {
-                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-                wheel.position.set(...pos);
-                wheel.castShadow = true;
-                vehicle.add(wheel);
-                wheels.push(wheel);
-            });
-
-            vehicle.position.set(-22, 0, 14);
-            vehicle.rotation.y = Math.PI / 2;
-            scene.add(vehicle);
-
-            vehicle.userData = {
-                speed: 0,
-                maxSpeed: 0.75,
-                acceleration: 0.028,
-                friction: 0.93,
-                turnSpeed: 0.045,
-                angle: Math.PI / 2,
-                radius: 1.7
-            };
-        }
-
-        /* ==========================================================================
-           12. STRUCTURES & LANDMARKS
-           ========================================================================== */
-        function createFarmPlots() {
-            const plotGridX = 3;
-            const plotGridZ = 3;
-            const plotSize = 5.5;
-            const startX = -32;
-            const startZ = -15;
-
-            for (let i = 0; i < plotGridX; i++) {
-                for (let j = 0; j < plotGridZ; j++) {
-                    const plotGroup = new THREE.Group();
-
-                    const dirtGeo = new THREE.BoxGeometry(plotSize, 0.2, plotSize);
-                    const dirtMat = new THREE.MeshStandardMaterial({ color: 0x3b2310, roughness: 1.0 });
-                    const dirt = new THREE.Mesh(dirtGeo, dirtMat);
-                    dirt.position.y = 0.1;
-                    dirt.receiveShadow = true;
-                    plotGroup.add(dirt);
-
-                    const posX = startX + (i * (plotSize + 3.5));
-                    const posZ = startZ + (j * (plotSize + 3.5));
-                    plotGroup.position.set(posX, 0, posZ);
-
-                    scene.add(plotGroup);
-
-                    farmPlots.push({
-                        group: plotGroup,
-                        state: 'empty',
-                        cropType: null,
-                        plantTime: 0,
-                        cropMesh: null
-                    });
+                if (p.life <= 0) {
+                    tractor.exhaustParticles.splice(i, 1);
                 }
             }
         }
 
-        function createSeedStore() {
-            const storeGroup = new THREE.Group();
-
-            const buildingGeo = new THREE.BoxGeometry(18, 9, 14);
-            const buildingMat = new THREE.MeshStandardMaterial({ color: 0x0369a1 });
-            const building = new THREE.Mesh(buildingGeo, buildingMat);
-            building.position.y = 4.5;
-            building.castShadow = true;
-            storeGroup.add(building);
-
-            const roofGeo = new THREE.ConeGeometry(14, 6, 4);
-            const roofMat = new THREE.MeshStandardMaterial({ color: 0x0284c7 });
-            const roof = new THREE.Mesh(roofGeo, roofMat);
-            roof.position.y = 12;
-            roof.rotation.y = Math.PI / 4;
-            storeGroup.add(roof);
-
-            const zoneGeo = new THREE.RingGeometry(2, 10, 32);
-            const zoneMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.4 });
-            const zone = new THREE.Mesh(zoneGeo, zoneMat);
-            zone.rotation.x = -Math.PI / 2;
-            zone.position.set(0, 0.05, 12);
-            storeGroup.add(zone);
-
-            const posX = -20, posZ = -110;
-            storeGroup.position.set(posX, 0, posZ);
-            scene.add(storeGroup);
-
-            seedStoreZone = {
-                position: new THREE.Vector3(posX, 0, posZ + 12),
-                radius: 10
-            };
-
-            colliders.push({
-                box: new THREE.Box3().setFromCenterAndSize(
-                    new THREE.Vector3(posX, 4.5, posZ),
-                    new THREE.Vector3(18.5, 9, 14.5)
-                )
+        function drawParticles(ctx) {
+            ctx.save();
+            tractor.exhaustParticles.forEach(p => {
+                ctx.fillStyle = `rgba(100, 100, 100, ${Math.max(0, p.alpha)})`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
             });
+            ctx.restore();
         }
 
-        function createPopupStore() {
-            const storeGroup = new THREE.Group();
+        // =================================================================
+        // INPUT HANDLING
+        // =================================================================
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.key] = true);
+        window.addEventListener('keyup', e => keys[e.key] = false);
 
-            const counterGeo = new THREE.BoxGeometry(9, 3, 3.5);
-            const counterMat = new THREE.MeshStandardMaterial({ color: 0x78350f });
-            const counter = new THREE.Mesh(counterGeo, counterMat);
-            counter.position.y = 1.5;
-            counter.castShadow = true;
-            storeGroup.add(counter);
+        function processInput() {
+            const spec = VEHICLES[state.currentVehicle];
+            const moveSpeed = spec.speed;
 
-            const canopyGeo = new THREE.BoxGeometry(10, 0.3, 6);
-            const canopyMat = new THREE.MeshStandardMaterial({ color: 0x15803d });
-            const canopy = new THREE.Mesh(canopyGeo, canopyMat);
-            canopy.position.set(0, 4.8, 0);
-            storeGroup.add(canopy);
+            let isMoving = false;
 
-            const posX = -10, posZ = 28;
-            storeGroup.position.set(posX, 0, posZ);
-            scene.add(storeGroup);
-
-            popupStoreZone = {
-                position: new THREE.Vector3(posX, 0, posZ),
-                radius: 7
-            };
-
-            colliders.push({
-                box: new THREE.Box3().setFromCenterAndSize(
-                    new THREE.Vector3(posX, 1.5, posZ),
-                    new THREE.Vector3(9.5, 3, 4.0)
-                )
-            });
-        }
-
-        function createParticleSystem() {
-            const particleCount = 60;
-            const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(particleCount * 3);
-
-            for (let i = 0; i < particleCount * 3; i += 3) {
-                positions[i] = (Math.random() - 0.5) * 200;
-                positions[i + 1] = Math.random() * 20;
-                positions[i + 2] = (Math.random() - 0.5) * 200;
+            if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+                tractor.y -= moveSpeed;
+                tractor.angle = -Math.PI / 2;
+                isMoving = true;
+            }
+            if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+                tractor.y += moveSpeed;
+                tractor.angle = Math.PI / 2;
+                isMoving = true;
+            }
+            if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+                tractor.x -= moveSpeed;
+                tractor.angle = Math.PI;
+                isMoving = true;
+            }
+            if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+                tractor.x += moveSpeed;
+                tractor.angle = 0;
+                isMoving = true;
             }
 
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.4, transparent: true, opacity: 0.6 });
-            const pSystem = new THREE.Points(geometry, material);
-            scene.add(pSystem);
+            // Boundaries
+            tractor.x = Math.max(30, Math.min(670, tractor.x));
+            tractor.y = Math.max(30, Math.min(470, tractor.y));
 
-            particles.push(pSystem);
+            // Emit particles when moving
+            if (isMoving && Math.random() < 0.4) {
+                tractor.exhaustParticles.push(createExhaustParticle(tractor.x - 10, tractor.y - 12));
+            }
         }
 
-        /* ==========================================================================
-           13. REAL-TIME HARD COLLISION ENGINE (PHYSICAL OBSTACLE PREVENTER)
-           ========================================================================== */
-        function checkCollisions(newPosition, radius) {
-            const entityBox = new THREE.Box3().setFromCenterAndSize(
-                newPosition,
-                new THREE.Vector3(radius * 2, 2, radius * 2)
-            );
+        // =================================================================
+        // RENDERING TRACTOR (DISTINCT FROM CAR)
+        // =================================================================
+        function drawTractor(ctx, x, y, spec) {
+            ctx.save();
+            ctx.translate(x, y);
 
-            for (let i = 0; i < colliders.length; i++) {
-                if (entityBox.intersectsBox(colliders[i].box)) {
-                    return true;
-                }
+            // 1. Large Rear Wheels
+            ctx.fillStyle = '#111111';
+            ctx.fillRect(-18, -spec.rearWheelR - 2, 14, spec.rearWheelR);
+            ctx.fillRect(-18, 2, 14, spec.rearWheelR);
+
+            // Tire Tread Details
+            ctx.fillStyle = '#333333';
+            for (let i = -spec.rearWheelR - 2; i < 0; i += 4) {
+                ctx.fillRect(-18, i, 14, 2);
+            }
+            for (let i = 2; i < spec.rearWheelR + 2; i += 4) {
+                ctx.fillRect(-18, i, 14, 2);
             }
 
-            if (!gameState.isDriving) {
-                const vehicleBox = new THREE.Box3().setFromCenterAndSize(
-                    vehicle.position,
-                    new THREE.Vector3(3.2, 2.0, 5.4)
-                );
-                if (entityBox.intersectsBox(vehicleBox)) {
-                    return true;
-                }
-            }
+            // 2. Small Front Wheels
+            ctx.fillStyle = '#111111';
+            ctx.fillRect(spec.bodyLength - 12, -spec.frontWheelR - 1, 8, spec.frontWheelR);
+            ctx.fillRect(spec.bodyLength - 12, 1, 8, spec.frontWheelR);
 
-            return false;
+            // 3. Main Chassis/Engine Hood
+            ctx.fillStyle = spec.color;
+            ctx.fillRect(-5, -10, spec.bodyLength, 20);
+
+            // 4. Tall Rear Cab / ROPS Frame
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(-12, -8, 12, 16);
+            ctx.fillStyle = '#3498db'; // Glass
+            ctx.fillRect(-10, -6, 8, 12);
+
+            // 5. Vertical Exhaust Pipe Stack
+            ctx.fillStyle = '#7f8c8d';
+            ctx.beginPath();
+            ctx.arc(spec.bodyLength - 16, -8, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Pipe rim
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.restore();
         }
 
-        /* ==========================================================================
-           14. CUSTOMERS AI & ORDER MANAGEMENT
-           ========================================================================== */
-        function spawnCustomer() {
-            if (customers.length >= 4) return;
+        // =================================================================
+        // ENVIRONMENT & SCENE DRAWING
+        // =================================================================
+        function drawEnvironment(ctx, canvas) {
+            // Draw Crop Rows (Background Texture)
+            ctx.strokeStyle = '#4d7c0f';
+            ctx.lineWidth = 4;
+            for (let i = 0; i < canvas.width; i += 30) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
 
-            const customerGroup = new THREE.Group();
+            // Draw NPCs
+            npcs.forEach(npc => {
+                // Outer ring
+                ctx.fillStyle = '#2980b9';
+                ctx.beginPath();
+                ctx.arc(npc.x, npc.y, 14, 0, Math.PI * 2);
+                ctx.fill();
 
-            const palette = [0xd97706, 0x7c3aed, 0xdb2777, 0x059669, 0x2563eb];
-            const randColor = palette[Math.floor(Math.random() * palette.length)];
+                // Inner core
+                ctx.fillStyle = '#3498db';
+                ctx.beginPath();
+                ctx.arc(npc.x, npc.y, 8, 0, Math.PI * 2);
+                ctx.fill();
 
-            const bodyGeo = new THREE.CylinderGeometry(0.45, 0.45, 1.7, 16);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: randColor });
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
-            body.position.y = 0.85;
-            body.castShadow = true;
-            customerGroup.add(body);
+                // Request Overhead Box
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                ctx.fillRect(npc.x - 40, npc.y - 42, 80, 22);
+                ctx.strokeStyle = '#f39c12';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(npc.x - 40, npc.y - 42, 80, 22);
 
-            const headGeo = new THREE.SphereGeometry(0.38, 16, 16);
-            const headMat = new THREE.MeshStandardMaterial({ color: 0xfef08a });
-            const head = new THREE.Mesh(headGeo, headMat);
-            head.position.y = 1.9;
-            head.castShadow = true;
-            customerGroup.add(head);
-
-            const spawnZ = 20 + (Math.random() * 25);
-            customerGroup.position.set(8, 0, spawnZ);
-            scene.add(customerGroup);
-
-            const targetPos = new THREE.Vector3(-10 + (Math.random() * 4 - 2), 0, 31);
-
-            const cropKeys = ['wheat', 'corn', 'pumpkin'];
-            const desired = cropKeys[Math.floor(Math.random() * cropKeys.length)];
-
-            const bubbleEl = document.createElement('div');
-            bubbleEl.className = 'customer-bubble';
-            bubbleEl.innerText = `${cropData[desired].icon} Want ${cropData[desired].name} ($${cropData[desired].value})`;
-            document.getElementById('customer-bubbles').appendChild(bubbleEl);
-
-            customers.push({
-                group: customerGroup,
-                target: targetPos,
-                state: 'walking_to_stand',
-                desiredCrop: desired,
-                bubbleEl: bubbleEl
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Wants: ${npc.itemNeeded}`, npc.x, npc.y - 28);
             });
         }
 
-        function updateCustomers(delta) {
-            const tempV = new THREE.Vector3();
+        // =================================================================
+        // UI & INTERACTION LOGIC
+        // =================================================================
+        function setVehicle(type) {
+            if (VEHICLES[type]) {
+                state.currentVehicle = type;
+                document.getElementById('vehicle-type').innerText = VEHICLES[type].name;
+                document.getElementById('vehicle-speed').innerText = VEHICLES[type].speed;
+            }
+        }
 
-            customers.forEach((cust, index) => {
-                cust.group.getWorldPosition(tempV);
-                tempV.y += 2.7;
-                tempV.project(camera);
+        function updateUI() {
+            document.getElementById('money-val').innerText = `$${state.money}`;
+            document.getElementById('rep-val').innerText = state.reputation;
 
-                const x = (tempV.x * .5 + .5) * window.innerWidth;
-                const y = (-(tempV.y * .5) + .5) * window.innerHeight;
+            // Render Inventory
+            const invContainer = document.getElementById('inventory-list');
+            invContainer.innerHTML = '';
+            for (const [item, count] of Object.entries(state.inventory)) {
+                const row = document.createElement('div');
+                row.className = 'stat-group';
+                row.innerHTML = `<span>${item}:</span> <strong>${count}</strong>`;
+                invContainer.appendChild(row);
+            }
 
-                cust.bubbleEl.style.left = `${x}px`;
-                cust.bubbleEl.style.top = `${y}px`;
+            // Render NPC Trade List
+            const npcContainer = document.getElementById('npc-list');
+            npcContainer.innerHTML = '';
+            npcs.forEach(npc => {
+                const dist = Math.hypot(tractor.x - npc.x, tractor.y - npc.y);
+                const inRange = dist < 70;
 
-                if (cust.state === 'walking_to_stand') {
-                    cust.bubbleEl.style.display = 'block';
-                    const dir = new THREE.Vector3().subVectors(cust.target, cust.group.position);
-                    if (dir.length() < 0.6) {
-                        cust.state = 'waiting';
-                    } else {
-                        dir.normalize();
-                        cust.group.position.addScaledVector(dir, 0.065);
-                        cust.group.lookAt(cust.target);
-                    }
-                } else if (cust.state === 'leaving') {
-                    const exitPos = new THREE.Vector3(15, 0, 55);
-                    const dir = new THREE.Vector3().subVectors(exitPos, cust.group.position);
-                    if (dir.length() < 1.2) {
-                        scene.remove(cust.group);
-                        cust.bubbleEl.remove();
-                        customers.splice(index, 1);
-                    } else {
-                        dir.normalize();
-                        cust.group.position.addScaledVector(dir, 0.085);
-                        cust.group.lookAt(exitPos);
-                    }
-                }
+                const card = document.createElement('div');
+                card.className = 'npc-card';
+                card.innerHTML = `
+                    <div class="npc-header">
+                        <span>${npc.name}</span>
+                        <span style="color: #f1c40f;">+$${npc.reward}</span>
+                    </div>
+                    <div>Needs: <strong>${npc.itemNeeded}</strong></div>
+                    <button ${!inRange ? 'disabled' : ''} onclick="fulfillTrade(${npc.id})">
+                        ${inRange ? 'Trade Now' : 'Drive Closer'}
+                    </button>
+                `;
+                npcContainer.appendChild(card);
             });
         }
 
-        /* ==========================================================================
-           15. MAIN ENGINE LOOP & MOVEMENT CONTROLS (STANDARD W-FORWARD, S-BACKWARD)
-           ========================================================================== */
-        function animate() {
-            requestAnimationFrame(animate);
+        function fulfillTrade(npcId) {
+            const npc = npcs.find(n => n.id === npcId);
+            if (!npc) return;
 
-            const delta = clock.getDelta();
+            const neededItem = npc.itemNeeded;
 
-            if (gameState.isDriving) {
-                updateVehiclePhysics();
+            if (state.inventory[neededItem] && state.inventory[neededItem] > 0) {
+                state.inventory[neededItem]--;
+                state.money += npc.reward;
+                state.reputation += 10;
+
+                // Pick a new random need
+                const keys = Object.keys(ITEMS);
+                const randomKey = keys[Math.floor(Math.random() * keys.length)];
+                npc.itemNeeded = ITEMS[randomKey].name;
+                npc.reward = ITEMS[randomKey].basePrice + Math.floor(Math.random() * 20);
+
+                updateUI();
             } else {
-                updatePlayerPhysics();
-            }
-
-            updateCrops();
-            updateCustomers(delta);
-            checkInteractionZones();
-            updateCamera();
-            renderMinimap();
-
-            renderer.render(scene, camera);
-        }
-
-        function updatePlayerPhysics() {
-            const p = player.userData;
-            const nextPos = player.position.clone();
-
-            // STANDARD CONTROLS: W goes FORWARD (-Z local), S goes BACKWARD (+Z local)
-            if (keys['w'] || keys['arrowup']) {
-                nextPos.z -= Math.cos(p.angle) * p.speed;
-                nextPos.x -= Math.sin(p.angle) * p.speed;
-            }
-            if (keys['s'] || keys['arrowdown']) {
-                nextPos.z += Math.cos(p.angle) * p.speed;
-                nextPos.x += Math.sin(p.angle) * p.speed;
-            }
-            if (keys['a'] || keys['arrowleft']) {
-                p.angle += p.rotationSpeed;
-                player.rotation.y = p.angle;
-            }
-            if (keys['d'] || keys['arrowright']) {
-                p.angle -= p.rotationSpeed;
-                player.rotation.y = p.angle;
-            }
-
-            if (!checkCollisions(nextPos, p.radius)) {
-                player.position.copy(nextPos);
+                alert(`You don't have any ${neededItem} in your inventory!`);
             }
         }
 
-        function updateVehiclePhysics() {
-            const v = vehicle.userData;
+        // =================================================================
+        // MAIN GAME LOOP
+        // =================================================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
 
-            // STANDARD VEHICLE CONTROLS: W accelerates forward, S brakes/reverses
-            if (keys['w'] || keys['arrowup']) {
-                v.speed = Math.min(v.speed + v.acceleration, v.maxSpeed);
-            } else if (keys['s'] || keys['arrowdown']) {
-                v.speed = Math.max(v.speed - v.acceleration, -v.maxSpeed * 0.45);
-            } else {
-                v.speed *= v.friction;
-            }
+        function loop() {
+            processInput();
+            updateParticles();
 
-            if (Math.abs(v.speed) > 0.01) {
-                const dir = v.speed > 0 ? 1 : -1;
-                if (keys['a'] || keys['arrowleft']) v.angle += v.turnSpeed * dir;
-                if (keys['d'] || keys['arrowright']) v.angle -= v.turnSpeed * dir;
-            }
+            // Clear & Draw
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawEnvironment(ctx, canvas);
+            drawParticles(ctx);
+            drawTractor(ctx, tractor.x, tractor.y, VEHICLES[state.currentVehicle]);
 
-            const nextVehiclePos = vehicle.position.clone();
-            nextVehiclePos.x -= Math.sin(v.angle) * v.speed;
-            nextVehiclePos.z -= Math.cos(v.angle) * v.speed;
-
-            if (!checkCollisions(nextVehiclePos, v.radius)) {
-                vehicle.position.copy(nextVehiclePos);
-            } else {
-                v.speed = 0;
-            }
-
-            vehicle.rotation.y = v.angle;
-            wheels.forEach(w => w.rotation.x += v.speed * 0.4);
-
-            player.position.copy(vehicle.position);
+            updateUI();
+            requestAnimationFrame(loop);
         }
 
-        function updateCamera() {
-            const targetObj = gameState.isDriving ? vehicle : player;
-
-            const targetCamPos = new THREE.Vector3(
-                targetObj.position.x - Math.sin(targetObj.rotation.y) * (gameState.isDriving ? -20 : -11),
-                targetObj.position.y + (gameState.isDriving ? 11 : 6.5),
-                targetObj.position.z - Math.cos(targetObj.rotation.y) * (gameState.isDriving ? -20 : -11)
-            );
-
-            camera.position.lerp(targetCamPos, 0.08);
-            camera.lookAt(targetObj.position.x, targetObj.position.y + 1, targetObj.position.z);
-        }
-
-        /* ==========================================================================
-           16. REAL-TIME MINIMAP RENDERER
-           ========================================================================== */
-        function renderMinimap() {
-            minimapCtx.clearRect(0, 0, 160, 160);
-
-            const cx = 80, cy = 80;
-            const scale = 0.8;
-
-            minimapCtx.fillStyle = "#374151";
-            minimapCtx.fillRect(cx - 8, 0, 16, 160);
-
-            minimapCtx.fillStyle = "#78350f";
-            farmPlots.forEach(p => {
-                const mx = cx + (p.group.position.x * scale);
-                const mz = cy + (p.group.position.z * scale);
-                minimapCtx.fillRect(mx - 4, mz - 4, 8, 8);
-            });
-
-            const px = cx + (player.position.x * scale);
-            const pz = cy + (player.position.z * scale);
-            minimapCtx.fillStyle = "#38bdf8";
-            minimapCtx.beginPath();
-            minimapCtx.arc(px, pz, 5, 0, Math.PI * 2);
-            minimapCtx.fill();
-
-            const vx = cx + (vehicle.position.x * scale);
-            const vz = cy + (vehicle.position.z * scale);
-            minimapCtx.fillStyle = "#ef4444";
-            minimapCtx.fillRect(vx - 4, vz - 4, 8, 8);
-        }
-
-        /* ==========================================================================
-           17. CROP SIMULATION & DYNAMIC GEOMETRY DISPATCH ENGINE
-           ========================================================================== */
-        function updateCrops() {
-            const now = Date.now();
-
-            farmPlots.forEach(plot => {
-                if (plot.state === 'growing') {
-                    const elapsed = now - plot.plantTime;
-                    const cData = cropData[plot.cropType];
-                    const progress = Math.min(elapsed / cData.growTime, 1.0);
-
-                    if (plot.cropMesh) {
-                        const currentScale = 0.1 + (progress * 0.9);
-                        plot.cropMesh.scale.set(currentScale, currentScale, currentScale);
-                    }
-
-                    if (progress >= 1.0) {
-                        plot.state = 'ready';
-                    }
-                }
-            });
-        }
-
-        function checkInteractionZones() {
-            const promptEl = document.getElementById('prompt-box');
-            const pos = gameState.isDriving ? vehicle.position : player.position;
-            activeZone = null;
-
-            const distToVehicle = player.position.distanceTo(vehicle.position);
-            if (!gameState.isDriving && distToVehicle < 4.2) {
-                activeZone = 'enter_vehicle';
-                promptEl.innerText = "Press [Q] or [F] to Drive Tractor";
-                promptEl.style.display = 'block';
-                return;
-            } else if (gameState.isDriving) {
-                promptEl.innerText = "Driving Tractor (Press [Q] or [F] to Exit)";
-                promptEl.style.display = 'block';
-            }
-
-            if (pos.distanceTo(seedStoreZone.position) < seedStoreZone.radius) {
-                activeZone = 'seed_store';
-                promptEl.innerText = "Press [E] to Open Seed Supplier Store";
-                promptEl.style.display = 'block';
-                return;
-            }
-
-            const waitingCustomer = customers.find(c => c.state === 'waiting' && pos.distanceTo(c.group.position) < 6.5);
-            if (waitingCustomer) {
-                const cName = cropData[waitingCustomer.desiredCrop].name;
-                const cVal = cropData[waitingCustomer.desiredCrop].value;
-                activeZone = { type: 'sell_customer', customer: waitingCustomer };
-                promptEl.innerText = `Press [E] to Sell ${cName} ($${cVal}) to Customer!`;
-                promptEl.style.display = 'block';
-                return;
-            }
-
-            for (let i = 0; i < farmPlots.length; i++) {
-                const plot = farmPlots[i];
-                if (pos.distanceTo(plot.group.position) < 4.0) {
-                    if (plot.state === 'empty') {
-                        const sec = cropData[gameState.selectedSeed].growTime / 1000;
-                        activeZone = { type: 'plot_plant', plot: plot };
-                        promptEl.innerText = `Press [E] to Plant ${gameState.selectedSeed.toUpperCase()} (${sec}s grow time)`;
-                        promptEl.style.display = 'block';
-                        return;
-                    } else if (plot.state === 'ready') {
-                        activeZone = { type: 'plot_harvest', plot: plot };
-                        promptEl.innerText = `Press [E] to Harvest ${cropData[plot.cropType].name}`;
-                        promptEl.style.display = 'block';
-                        return;
-                    } else if (plot.state === 'growing') {
-                        const elapsed = Date.now() - plot.plantTime;
-                        const remaining = Math.ceil((cropData[plot.cropType].growTime - elapsed) / 1000);
-                        promptEl.innerText = `Growing ${cropData[plot.cropType].name}... (${remaining}s remaining)`;
-                        promptEl.style.display = 'block';
-                        return;
-                    }
-                }
-            }
-
-            if (!gameState.isDriving) {
-                promptEl.style.display = 'none';
-            }
-        }
-
-        /* ==========================================================================
-           18. KEYBOARD BINDINGS & ACTION DISPATCH
-           ========================================================================== */
-        function onKeyDown(e) {
-            const key = e.key.toLowerCase();
-            keys[key] = true;
-
-            if (key === '1') selectSeed('wheat');
-            if (key === '2') selectSeed('corn');
-            if (key === '3') selectSeed('pumpkin');
-
-            if (key === 'q' || key === 'f') {
-                toggleVehicle();
-            }
-
-            if (key === 'e' || key === ' ') {
-                handleInteraction();
-            }
-        }
-
-        function onKeyUp(e) {
-            keys[e.key.toLowerCase()] = false;
-        }
-
-        function toggleVehicle() {
-            if (gameState.isDriving) {
-                gameState.isDriving = false;
-                player.position.set(vehicle.position.x - 3.2, 0, vehicle.position.z);
-                player.visible = true;
-                document.getElementById('mode-tag').innerText = "Mode: On Foot";
-            } else {
-                if (player.position.distanceTo(vehicle.position) < 4.2) {
-                    gameState.isDriving = true;
-                    player.visible = false;
-                    document.getElementById('mode-tag').innerText = "Mode: Driving";
-                }
-            }
-        }
-
-        function handleInteraction() {
-            if (!activeZone) return;
-
-            if (activeZone === 'enter_vehicle') {
-                toggleVehicle();
-            } else if (activeZone === 'seed_store') {
-                document.getElementById('seed-shop-modal').style.display = 'flex';
-            } else if (typeof activeZone === 'object') {
-                if (activeZone.type === 'plot_plant') {
-                    plantCrop(activeZone.plot);
-                } else if (activeZone.type === 'plot_harvest') {
-                    harvestCrop(activeZone.plot);
-                } else if (activeZone.type === 'sell_customer') {
-                    sellToCustomer(activeZone.customer);
-                }
-            }
-        }
-
-        function plantCrop(plot) {
-            const seedType = gameState.selectedSeed;
-            if (gameState.seeds[seedType] <= 0) {
-                alert(`Out of ${seedType} seeds! Visit the Seed Supplier Store.`);
-                return;
-            }
-
-            gameState.seeds[seedType]--;
-            plot.state = 'growing';
-            plot.cropType = seedType;
-            plot.plantTime = Date.now();
-
-            let mesh;
-            if (seedType === 'wheat') {
-                mesh = createWheatMesh();
-            } else if (seedType === 'corn') {
-                mesh = createCornMesh();
-            } else if (seedType === 'pumpkin') {
-                mesh = createPumpkinMesh();
-            }
-
-            mesh.scale.set(0.1, 0.1, 0.1);
-            plot.group.add(mesh);
-            plot.cropMesh = mesh;
-
-            updateHUD();
-        }
-
-        function harvestCrop(plot) {
-            const cropType = plot.cropType;
-            gameState.crops[cropType]++;
-
-            plot.group.remove(plot.cropMesh);
-            plot.cropMesh = null;
-            plot.state = 'empty';
-            plot.cropType = null;
-
-            updateHUD();
-        }
-
-        function sellToCustomer(customer) {
-            const crop = customer.desiredCrop;
-
-            if (gameState.crops[crop] > 0) {
-                gameState.crops[crop]--;
-                const earned = cropData[crop].value;
-                gameState.money += earned;
-
-                customer.state = 'leaving';
-                customer.bubbleEl.innerText = `Sold! +$${earned}`;
-                customer.bubbleEl.style.borderColor = "#38bdf8";
-
-                updateHUD();
-            } else {
-                alert(`You need harvested ${cropData[crop].name} to complete this trade!`);
-            }
-        }
-
-        function buySeed(type, cost) {
-            if (gameState.money >= cost) {
-                gameState.money -= cost;
-                gameState.seeds[type]++;
-                gameState.selectedSeed = type;
-                updateHUD();
-            } else {
-                alert("Insufficient funds for this seed tier!");
-            }
-        }
-
-        function closeModals() {
-            document.querySelectorAll('.modal-backdrop').forEach(m => m.style.display = 'none');
-        }
-
-        function selectSeed(type) {
-            gameState.selectedSeed = type;
-            updateHUD();
-        }
-
-        function updateHUD() {
-            document.getElementById('money-display').innerText = `$${gameState.money}`;
-
-            const seedUI = document.getElementById('seeds-inventory');
-            seedUI.innerHTML = '';
-            for (let s in gameState.seeds) {
-                const isSel = gameState.selectedSeed === s;
-                const icon = cropData[s].icon;
-                const sec = cropData[s].growTime / 1000;
-                seedUI.innerHTML += `
-                    <div class="inventory-card ${isSel ? 'active' : ''}" onclick="selectSeed('${s}')">
-                        <span class="inventory-label">${icon} ${s.toUpperCase()} <span class="badge-time">${sec}s</span></span>
-                        <span>x${gameState.seeds[s]}</span>
-                    </div>`;
-            }
-
-            const cropUI = document.getElementById('crops-inventory');
-            cropUI.innerHTML = '';
-            for (let c in gameState.crops) {
-                const icon = cropData[c].icon;
-                cropUI.innerHTML += `
-                    <div class="inventory-card">
-                        <span class="inventory-label">${icon} ${c.toUpperCase()}</span>
-                        <span>x${gameState.crops[c]}</span>
-                    </div>`;
-            }
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        window.onload = init;
+        // Initialize UI & Start Engine
+        updateUI();
+        requestAnimationFrame(loop);
     </script>
 </body>
 </html>
