@@ -3,78 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Ultimate Farm & Tractor Logistics Simulator</title>
+    <title>3D Farm Logistics & Empire Simulator</title>
     <style>
+        /* ==========================================
+           1. CSS RESET & GLOBAL VARIABLES
+           ========================================== */
         :root {
             --bg-color: #111827;
             --panel-bg: #1f2937;
+            --card-bg: #111827;
             --accent-green: #10b981;
+            --accent-green-hover: #059669;
             --accent-orange: #f59e0b;
             --accent-gold: #fbbf24;
+            --accent-red: #ef4444;
             --text-light: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-color: #374151;
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
+            --border-radius-sm: 4px;
+            --border-radius-md: 6px;
+            --border-radius-lg: 8px;
+            --border-radius-xl: 12px;
         }
 
-        * {
+        *, *::before, *::after {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            margin: 0;
-            padding: 15px;
             background-color: var(--bg-color);
             color: var(--text-light);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: var(--font-main);
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        /* ==========================================
+           2. HEADER & LAYOUT STRUCTURE
+           ========================================== */
+        header {
+            margin-bottom: 15px;
+            text-align: center;
         }
 
         h1 {
-            margin: 0 0 10px 0;
-            font-size: 24px;
+            font-size: 26px;
             color: var(--accent-gold);
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+            letter-spacing: 0.5px;
         }
 
         #game-layout {
             display: flex;
+            flex-direction: row;
             gap: 15px;
             background-color: var(--panel-bg);
             padding: 15px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            max-width: 1150px;
+            border-radius: var(--border-radius-xl);
+            box-shadow: var(--shadow-lg);
+            max-width: 1200px;
             width: 100%;
         }
 
         #canvas-wrapper {
             position: relative;
             flex: 1;
+            min-width: 0;
         }
 
         canvas {
             border: 3px solid var(--accent-green);
-            border-radius: 8px;
+            border-radius: var(--border-radius-lg);
             display: block;
             width: 100%;
-            height: 520px;
+            height: 540px;
         }
 
+        #controls-hint {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 6px 12px;
+            border-radius: var(--border-radius-sm);
+            font-size: 12px;
+            color: #ffffff;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+        }
+
+        /* ==========================================
+           3. SIDEBAR & PANEL CARDS
+           ========================================== */
         #sidebar {
             width: 380px;
             display: flex;
             flex-direction: column;
             gap: 12px;
-            max-height: 520px;
+            max-height: 540px;
             overflow-y: auto;
             padding-right: 5px;
         }
 
         .card {
-            background-color: #111827;
+            background-color: var(--card-bg);
             padding: 12px;
-            border-radius: 8px;
+            border-radius: var(--border-radius-lg);
             border-left: 4px solid var(--accent-orange);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
 
         .card.gold-card {
@@ -82,8 +128,7 @@
         }
 
         .card h3 {
-            margin: 0 0 8px 0;
-            color: #f59e0b;
+            color: var(--accent-orange);
             font-size: 15px;
             display: flex;
             justify-content: space-between;
@@ -93,39 +138,42 @@
         .stat-group {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 4px;
+            align-items: center;
             font-size: 13px;
         }
 
+        /* ==========================================
+           4. STORE GRID & CONTROL BUTTONS
+           ========================================== */
         .grid-store {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(2, 1fr);
             gap: 6px;
         }
 
         .store-item {
-            background: #1f2937;
-            padding: 6px;
-            border-radius: 6px;
+            background: var(--panel-bg);
+            padding: 8px;
+            border-radius: var(--border-radius-md);
             font-size: 11px;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            gap: 4px;
+            border: 1px solid var(--border-color);
         }
 
         .store-item.top-tier {
             border: 1px solid var(--accent-gold);
-            background: #371b04;
+            background: #2a1a08;
         }
 
         .npc-card {
             background: #374151;
-            padding: 8px;
-            margin-bottom: 6px;
-            border-radius: 6px;
+            padding: 10px;
+            border-radius: var(--border-radius-md);
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
             font-size: 12px;
         }
 
@@ -136,18 +184,18 @@
         }
 
         button {
-            padding: 5px 8px;
+            padding: 6px 10px;
             background-color: var(--accent-green);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: var(--border-radius-sm);
             font-weight: bold;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: background 0.2s ease;
         }
 
         button:hover {
-            background-color: #059669;
+            background-color: var(--accent-green-hover);
         }
 
         button:disabled {
@@ -158,54 +206,42 @@
         .vehicle-selector {
             display: flex;
             gap: 5px;
-            margin-top: 5px;
         }
 
         .vehicle-btn {
             flex: 1;
             font-size: 11px;
-            padding: 5px;
+            padding: 6px 0;
         }
 
         .audio-btn {
-            background-color: #ef4444;
+            background-color: var(--accent-red);
             font-size: 11px;
-            padding: 3px 6px;
+            padding: 4px 8px;
         }
 
         .audio-btn.enabled {
-            background-color: #10b981;
-        }
-
-        #controls-hint {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #fff;
-            pointer-events: none;
+            background-color: var(--accent-green);
         }
 
         ::-webkit-scrollbar {
             width: 6px;
         }
         ::-webkit-scrollbar-track {
-            background: #111827;
+            background: var(--bg-color);
         }
         ::-webkit-scrollbar-thumb {
             background: #374151;
             border-radius: 3px;
         }
     </style>
-    <!-- Load Three.js library from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <h1>3D Farm Logistics & Empire Simulator</h1>
+    <header>
+        <h1>3D Farm Logistics & Empire Simulator</h1>
+    </header>
 
     <div id="game-layout">
         <div id="canvas-wrapper">
@@ -219,14 +255,26 @@
                     Treasury
                     <button id="audio-toggle" class="audio-btn" onclick="toggleAudio()">Sound: OFF</button>
                 </h3>
-                <div class="stat-group"><span>Coins:</span> <strong id="money-val" style="color: var(--accent-gold); font-size: 15px;">100</strong></div>
-                <div class="stat-group"><span>Reputation:</span> <span id="rep-val">0</span></div>
+                <div class="stat-group">
+                    <span>Coins:</span>
+                    <strong id="money-val" style="color: var(--accent-gold); font-size: 15px;">100</strong>
+                </div>
+                <div class="stat-group">
+                    <span>Reputation:</span>
+                    <span id="rep-val">0</span>
+                </div>
             </div>
 
             <div class="card">
                 <h3>Vehicle Config</h3>
-                <div class="stat-group"><span>Model:</span> <span id="vehicle-type">Utility Tractor</span></div>
-                <div class="stat-group"><span>Top Speed:</span> <span id="vehicle-speed">0.3</span></div>
+                <div class="stat-group">
+                    <span>Model:</span>
+                    <span id="vehicle-type">Utility Tractor</span>
+                </div>
+                <div class="stat-group">
+                    <span>Top Speed:</span>
+                    <span id="vehicle-speed">0.35</span>
+                </div>
                 <div class="vehicle-selector">
                     <button class="vehicle-btn" onclick="setVehicle('utility')">Utility</button>
                     <button class="vehicle-btn" onclick="setVehicle('heavy')">Heavy Duty</button>
@@ -247,9 +295,9 @@
     </div>
 
     <script>
-        // =================================================================
-        // AUDIO ENGINE (WEB AUDIO API)
-        // =================================================================
+        // ==========================================
+        // 1. AUDIO SYNTHESIZER (WEB AUDIO API)
+        // ==========================================
         let audioCtx = null;
         let audioEnabled = false;
 
@@ -302,9 +350,9 @@
             setTimeout(() => playTone(783.99, 'sine', 0.2, 0.2), 160);
         }
 
-        // =================================================================
-        // GAME DATA & CROPS
-        // =================================================================
+        // ==========================================
+        // 2. CROP & VEHICLE DEFINITIONS
+        // ==========================================
         const CROPS = {
             CARROT: { name: 'Carrot', icon: '🥕', cost: 10, sellReward: 25 },
             POTATO: { name: 'Potato', icon: '🥔', cost: 15, sellReward: 35 },
@@ -349,22 +397,21 @@
             return chosen;
         }
 
-        // =================================================================
-        // THREE.JS 3D SCENE SETUP
-        // =================================================================
+        // ==========================================
+        // 3. THREE.JS SCENE INITIALIZATION
+        // ==========================================
         const container = document.getElementById('canvas-wrapper');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb); // Sky blue
+        scene.background = new THREE.Color(0x87ceeb);
         scene.fog = new THREE.FogExp2(0x87ceeb, 0.008);
 
-        const camera = new THREE.PerspectiveCamera(45, 650 / 520, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(45, 650 / 540, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(650, 520);
+        renderer.setSize(650, 540);
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(renderer.domElement);
 
-        // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
 
@@ -373,15 +420,9 @@
         dirLight.castShadow = true;
         dirLight.shadow.mapSize.width = 1024;
         dirLight.shadow.mapSize.height = 1024;
-        dirLight.shadow.camera.near = 0.5;
-        dirLight.shadow.camera.far = 200;
-        dirLight.shadow.camera.left = -60;
-        dirLight.shadow.camera.right = 60;
-        dirLight.shadow.camera.top = 60;
-        dirLight.shadow.camera.bottom = -60;
         scene.add(dirLight);
 
-        // Ground Plane (Farm Field)
+        // Ground Plane
         const groundGeo = new THREE.PlaneGeometry(120, 120);
         const groundMat = new THREE.MeshStandardMaterial({ color: 0x558b2f, roughness: 0.8 });
         const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -389,41 +430,24 @@
         ground.receiveShadow = true;
         scene.add(ground);
 
-        // Farm Field Stripes
-        for (let i = -50; i < 50; i += 8) {
-            const stripeGeo = new THREE.PlaneGeometry(2, 100);
-            const stripeMat = new THREE.MeshStandardMaterial({ color: 0x4d7c0f });
-            const stripe = new THREE.Mesh(stripeGeo, stripeMat);
-            stripe.rotation.x = -Math.PI / 2;
-            stripe.position.set(i, 0.01, 0);
-            stripe.receiveShadow = true;
-            scene.add(stripe);
-        }
-
-        // =================================================================
-        // 3D MODELS CREATION (BUILDING WITH PRIMITIVES)
-        // =================================================================
-        // Tractor Mesh Container
+        // ==========================================
+        // 4. VEHICLE MESH & SCENE OBJECTS
+        // ==========================================
         const tractorGroup = new THREE.Group();
         scene.add(tractorGroup);
 
-        let tractorBodyMesh;
-
         function buildTractorMesh(colorHex) {
-            // Clear existing children
-            while(tractorGroup.children.length > 0){ 
+            while(tractorGroup.children.length > 0) { 
                 tractorGroup.remove(tractorGroup.children[0]); 
             }
 
-            // Chassis
             const bodyGeo = new THREE.BoxGeometry(2, 1.2, 3.2);
             const bodyMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3 });
-            tractorBodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-            tractorBodyMesh.position.y = 1;
-            tractorBodyMesh.castShadow = true;
-            tractorGroup.add(tractorBodyMesh);
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1;
+            body.castShadow = true;
+            tractorGroup.add(body);
 
-            // Cabin
             const cabGeo = new THREE.BoxGeometry(1.8, 1.2, 1.4);
             const cabMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50 });
             const cab = new THREE.Mesh(cabGeo, cabMat);
@@ -431,21 +455,6 @@
             cab.castShadow = true;
             tractorGroup.add(cab);
 
-            // Windows
-            const winGeo = new THREE.BoxGeometry(1.82, 0.8, 1.2);
-            const winMat = new THREE.MeshStandardMaterial({ color: 0x3498db, roughness: 0.1 });
-            const win = new THREE.Mesh(winGeo, winMat);
-            win.position.set(0, 1.9, -0.5);
-            tractorGroup.add(win);
-
-            // Exhaust Stack
-            const exGeo = new THREE.CylinderGeometry(0.1, 0.1, 1.2);
-            const exMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8 });
-            const exhaust = new THREE.Mesh(exGeo, exMat);
-            exhaust.position.set(0.6, 2.0, 1.0);
-            tractorGroup.add(exhaust);
-
-            // Big Rear Wheels
             const rWheelGeo = new THREE.CylinderGeometry(0.9, 0.9, 0.5, 16);
             const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
             
@@ -458,80 +467,28 @@
             const rWheelR = rWheelL.clone();
             rWheelR.position.x = -1.2;
             tractorGroup.add(rWheelR);
-
-            // Small Front Wheels
-            const fWheelGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 16);
-            const fWheelL = new THREE.Mesh(fWheelGeo, wheelMat);
-            fWheelL.rotation.z = Math.PI / 2;
-            fWheelL.position.set(1.1, 0.5, 1.0);
-            fWheelL.castShadow = true;
-            tractorGroup.add(fWheelL);
-
-            const fWheelR = fWheelL.clone();
-            fWheelR.position.x = -1.1;
-            tractorGroup.add(fWheelR);
         }
 
         buildTractorMesh(VEHICLES.utility.color);
 
-        // Build Town Order Delivery Zones (NPC Markers)
+        // Town delivery nodes
         npcs.forEach(npc => {
             const group = new THREE.Group();
             group.position.set(npc.x, 0, npc.z);
 
-            // Building Pad
             const padGeo = new THREE.CylinderGeometry(4, 4, 0.2, 32);
             const padMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6 });
             const pad = new THREE.Mesh(padGeo, padMat);
             pad.receiveShadow = true;
             group.add(pad);
 
-            // NPC House/Stall
-            const houseGeo = new THREE.BoxGeometry(3, 3, 3);
-            const houseMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af });
-            const house = new THREE.Mesh(houseGeo, houseMat);
-            house.position.y = 1.5;
-            house.castShadow = true;
-            group.add(house);
-
-            // Roof
-            const roofGeo = new THREE.ConeGeometry(2.5, 1.5, 4);
-            const roofMat = new THREE.MeshStandardMaterial({ color: 0xef4444 });
-            const roof = new THREE.Mesh(roofGeo, roofMat);
-            roof.position.y = 3.75;
-            roof.rotation.y = Math.PI / 4;
-            group.add(roof);
-
             scene.add(group);
             npc.mesh = group;
         });
 
-        // Add visual trees around perimeter
-        for (let i = 0; i < 20; i++) {
-            const treeGroup = new THREE.Group();
-            const trunk = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.3, 0.4, 2),
-                new THREE.MeshStandardMaterial({ color: 0x5c4033 })
-            );
-            trunk.position.y = 1;
-            treeGroup.add(trunk);
-
-            const leaves = new THREE.Mesh(
-                new THREE.ConeGeometry(1.8, 4, 8),
-                new THREE.MeshStandardMaterial({ color: 0x15803d })
-            );
-            leaves.position.y = 3;
-            leaves.castShadow = true;
-            treeGroup.add(leaves);
-
-            const angle = (i / 20) * Math.PI * 2;
-            treeGroup.position.set(Math.cos(angle) * 55, 0, Math.sin(angle) * 55);
-            scene.add(treeGroup);
-        }
-
-        // =================================================================
-        // CONTROLS & MOVEMENT
-        // =================================================================
+        // ==========================================
+        // 5. GAME LOOP & CONTROLS
+        // ==========================================
         const keys = {};
         window.addEventListener('keydown', e => keys[e.key] = true);
         window.addEventListener('keyup', e => keys[e.key] = false);
@@ -555,13 +512,8 @@
                 tractorGroup.rotation.y -= vehicle.turnSpeed;
             }
 
-            // Clamp positions to field
-            tractorGroup.position.x = Math.max(-50, Math.min(50, tractorGroup.position.x));
-            tractorGroup.position.z = Math.max(-50, Math.min(50, tractorGroup.position.z));
-
             if (isMoving) playEngineSound();
 
-            // Smooth Camera Follow
             const targetCamPos = new THREE.Vector3();
             targetCamPos.x = tractorGroup.position.x - Math.sin(tractorGroup.rotation.y) * 18;
             targetCamPos.z = tractorGroup.position.z - Math.cos(tractorGroup.rotation.y) * 18;
@@ -571,9 +523,6 @@
             camera.lookAt(tractorGroup.position.x, tractorGroup.position.y + 1, tractorGroup.position.z);
         }
 
-        // =================================================================
-        // UI INTERACTION
-        // =================================================================
         function buyCrop(cropKey) {
             const crop = CROPS[cropKey];
             if (state.money >= crop.cost) {
@@ -581,8 +530,6 @@
                 state.inventory[crop.name] = (state.inventory[crop.name] || 0) + 1;
                 playTone(600, 'sine', 0.08, 0.1);
                 updateUI();
-            } else {
-                playTone(150, 'sawtooth', 0.2, 0.1);
             }
         }
 
@@ -592,7 +539,6 @@
                 buildTractorMesh(VEHICLES[type].color);
                 document.getElementById('vehicle-type').innerText = VEHICLES[type].name;
                 document.getElementById('vehicle-speed').innerText = VEHICLES[type].speed;
-                playTone(300, 'square', 0.05, 0.1);
             }
         }
 
@@ -600,7 +546,6 @@
             document.getElementById('money-val').innerText = state.money.toLocaleString();
             document.getElementById('rep-val').innerText = state.reputation;
 
-            // Render Store Grid
             const storeGrid = document.getElementById('store-grid');
             storeGrid.innerHTML = '';
 
@@ -611,14 +556,13 @@
                 itemDiv.className = `store-item ${crop.topTier ? 'top-tier' : ''}`;
                 itemDiv.innerHTML = `
                     <div><strong>${crop.icon} ${crop.name}</strong></div>
-                    <div style="color: #f59e0b;">Cost: ${crop.cost}g</div>
+                    <div style="color: var(--accent-orange);">Cost: ${crop.cost}g</div>
                     <div>Owned: <strong>${owned}</strong></div>
-                    <button style="margin-top:4px;" onclick="buyCrop('${k}')">Buy 1</button>
+                    <button onclick="buyCrop('${k}')">Buy 1</button>
                 `;
                 storeGrid.appendChild(itemDiv);
             });
 
-            // Render NPC Orders
             const npcContainer = document.getElementById('npc-list');
             npcContainer.innerHTML = '';
             npcs.forEach(npc => {
@@ -632,7 +576,7 @@
                 card.innerHTML = `
                     <div class="npc-header">
                         <span>${npc.name}</span>
-                        <span style="color: #f59e0b;">+${reward} coins</span>
+                        <span style="color: var(--accent-gold);">+${reward} coins</span>
                     </div>
                     <div>Wants: <strong>${cropObj ? cropObj.icon : ''} ${npc.itemNeeded}</strong></div>
                     <button ${!inRange ? 'disabled' : ''} onclick="fulfillTrade(${npc.id})">
@@ -655,30 +599,15 @@
                 state.inventory[neededItem]--;
                 state.money += reward;
                 state.reputation += (neededItem === 'Golden Apple' ? 100 : 10);
-
                 playTradeSound();
-
                 npc.itemNeeded = getRandomCropName();
                 updateUI();
-            } else {
-                playTone(150, 'sawtooth', 0.2, 0.1);
-                alert(`You need to buy ${neededItem} first!`);
             }
         }
 
-        // =================================================================
-        // ANIMATION LOOP
-        // =================================================================
         function animate() {
             requestAnimationFrame(animate);
-
             updatePhysics();
-            
-            // Rotate NPC roof elements for visual feedback
-            npcs.forEach(npc => {
-                if (npc.mesh) npc.mesh.children[2].rotation.y += 0.02;
-            });
-
             renderer.render(scene, camera);
             updateUI();
         }
