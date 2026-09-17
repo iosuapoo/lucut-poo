@@ -52,7 +52,8 @@
             border-radius: 16px;
             color: #fff;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-            min-width: 240px;
+            min-width: 260px;
+            pointer-events: auto;
         }
 
         .hud-card h2 {
@@ -82,10 +83,15 @@
             display: flex;
             justify-content: space-between;
             color: #e2e8f0;
-            padding: 4px 8px;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.03);
-            transition: background 0.2s;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .inventory-item:hover {
+            background: rgba(255, 255, 255, 0.12);
         }
 
         .inventory-item.selected {
@@ -314,12 +320,15 @@
             <h2>Farm Funds</h2>
             <div class="value" id="money-display">$100</div>
         </div>
+
+        <!-- Comprehensive Inventory HUD -->
         <div class="hud-card">
-            <h2>Seed Pouch (Select with 1-3)</h2>
+            <h2>🎒 Seed Inventory (Press 1-3)</h2>
             <div class="inventory-list" id="seeds-inventory"></div>
         </div>
+
         <div class="hud-card">
-            <h2>Harvest Barn</h2>
+            <h2>🌾 Harvested Plants Inventory</h2>
             <div class="inventory-list" id="crops-inventory"></div>
         </div>
     </div>
@@ -341,7 +350,7 @@
         <strong>Controls System:</strong><br>
         W / A / S / D : Walk / Drive<br>
         E or Space : Interact / Buy / Harvest<br>
-        F : Enter / Exit Vehicle<br>
+        Q or F : Exit / Enter Vehicle<br>
         1, 2, 3 : Switch Active Seed
     </div>
 
@@ -386,9 +395,9 @@
         };
 
         const cropData = {
-            wheat: { name: 'Wheat', growTime: 4000, color: 0xeab308, value: 30, scaleY: 1.2 },
-            corn: { name: 'Corn', growTime: 8000, color: 0x84cc16, value: 75, scaleY: 2.0 },
-            pumpkin: { name: 'Pumpkin', growTime: 14000, color: 0xf97316, value: 180, scaleY: 0.8 }
+            wheat: { name: 'Wheat', growTime: 4000, color: 0xeab308, value: 30, scaleY: 1.2, icon: '🌾' },
+            corn: { name: 'Corn', growTime: 8000, color: 0x84cc16, value: 75, scaleY: 2.0, icon: '🌽' },
+            pumpkin: { name: 'Pumpkin', growTime: 14000, color: 0xf97316, value: 180, scaleY: 0.8, icon: '🎃' }
         };
 
         let scene, camera, renderer, clock;
@@ -860,18 +869,15 @@
 
         function updatePlayerPhysics() {
             const p = player.userData;
-            let moved = false;
 
             // Character movement
             if (keys['w'] || keys['arrowup']) {
                 player.position.z -= Math.cos(p.angle) * p.speed;
                 player.position.x -= Math.sin(p.angle) * p.speed;
-                moved = true;
             }
             if (keys['s'] || keys['arrowdown']) {
                 player.position.z += Math.cos(p.angle) * p.speed;
                 player.position.x += Math.sin(p.angle) * p.speed;
-                moved = true;
             }
             if (keys['a'] || keys['arrowleft']) {
                 p.angle += p.rotationSpeed;
@@ -958,11 +964,11 @@
             const distToVehicle = player.position.distanceTo(vehicle.position);
             if (!gameState.isDriving && distToVehicle < 4.0) {
                 activeZone = 'enter_vehicle';
-                promptEl.innerText = "Press [F] or [E] to Drive Vehicle";
+                promptEl.innerText = "Press [Q] or [F] to Drive Vehicle";
                 promptEl.style.display = 'block';
                 return;
             } else if (gameState.isDriving) {
-                promptEl.innerText = "Driving Vehicle (Press [F] to Exit)";
+                promptEl.innerText = "Driving Vehicle (Press [Q] or [F] to Exit)";
                 promptEl.style.display = 'block';
             }
 
@@ -1022,8 +1028,8 @@
             if (key === '2') selectSeed('corn');
             if (key === '3') selectSeed('pumpkin');
 
-            // Enter/Exit Vehicle
-            if (key === 'f') {
+            // Enter/Exit Vehicle bound to both Q and F
+            if (key === 'q' || key === 'f') {
                 toggleVehicle();
             }
 
@@ -1158,9 +1164,10 @@
             seedUI.innerHTML = '';
             for (let s in gameState.seeds) {
                 const isSel = gameState.selectedSeed === s;
+                const icon = cropData[s].icon;
                 seedUI.innerHTML += `
                     <div class="inventory-item ${isSel ? 'selected' : ''}" onclick="selectSeed('${s}')">
-                        <span>${s.toUpperCase()}</span>
+                        <span>${icon} ${s.toUpperCase()} ${isSel ? '(Equipped)' : ''}</span>
                         <span>x${gameState.seeds[s]}</span>
                     </div>`;
             }
@@ -1169,9 +1176,10 @@
             const cropUI = document.getElementById('crops-inventory');
             cropUI.innerHTML = '';
             for (let c in gameState.crops) {
+                const icon = cropData[c].icon;
                 cropUI.innerHTML += `
                     <div class="inventory-item">
-                        <span>${c.toUpperCase()}</span>
+                        <span>${icon} ${c.toUpperCase()}</span>
                         <span>x${gameState.crops[c]}</span>
                     </div>`;
             }
