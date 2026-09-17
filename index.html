@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Farm Tycoon - Driving & Farming Simulator</title>
+    <title>3D Farm Tycoon - Walk, Drive & Sell to Customers</title>
     <style>
+        /* ==========================================================================
+           1. RESET & CORE UI STYLES
+           ========================================================================== */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -17,7 +20,8 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #000;
+            background-color: #050b14;
+            color: #ffffff;
         }
 
         #canvas-container {
@@ -26,7 +30,9 @@
             display: block;
         }
 
-        /* --- HUD STYLES --- */
+        /* ==========================================================================
+           2. HUD & OVERLAY INTERFACE
+           ========================================================================== */
         #hud {
             position: absolute;
             top: 20px;
@@ -39,18 +45,18 @@
         }
 
         .hud-card {
-            background: rgba(15, 23, 42, 0.75);
+            background: rgba(15, 23, 42, 0.85);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            padding: 15px 22px;
+            padding: 16px 24px;
             border-radius: 16px;
             color: #fff;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            min-width: 220px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+            min-width: 240px;
         }
 
         .hud-card h2 {
-            font-size: 14px;
+            font-size: 13px;
             text-transform: uppercase;
             letter-spacing: 1.5px;
             color: #94a3b8;
@@ -58,9 +64,10 @@
         }
 
         .hud-card .value {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: 800;
             color: #4ade80;
+            text-shadow: 0 0 10px rgba(74, 222, 128, 0.3);
         }
 
         .inventory-list {
@@ -75,15 +82,60 @@
             display: flex;
             justify-content: space-between;
             color: #e2e8f0;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.03);
+            transition: background 0.2s;
         }
 
-        /* --- PROMPT POPUP --- */
+        .inventory-item.selected {
+            background: rgba(56, 189, 248, 0.2);
+            border: 1px solid #38bdf8;
+            color: #38bdf8;
+            font-weight: bold;
+        }
+
+        /* Mode Indicator Pill */
+        #mode-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #38bdf8;
+            text-transform: uppercase;
+            z-index: 10;
+        }
+
+        /* Crosshair for foot interaction */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+            display: block;
+        }
+
+        /* Interactive Prompts */
         #interaction-prompt {
             position: absolute;
             bottom: 40px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.85);
+            background: rgba(15, 23, 42, 0.9);
             backdrop-filter: blur(12px);
             border: 2px solid #38bdf8;
             color: #fff;
@@ -92,18 +144,51 @@
             font-size: 18px;
             font-weight: 600;
             display: none;
-            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
-            animation: pulse 1.5s infinite;
-            z-index: 10;
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.5);
+            animation: pulsePrompt 1.5s infinite;
+            z-index: 20;
+            text-align: center;
         }
 
-        @keyframes pulse {
+        @keyframes pulsePrompt {
             0% { transform: translateX(-50%) scale(1); }
-            50% { transform: translateX(-50%) scale(1.05); }
+            50% { transform: translateX(-50%) scale(1.04); }
             100% { transform: translateX(-50%) scale(1); }
         }
 
-        /* --- MODAL SHOP WINDOWS --- */
+        /* Customer Speech Bubble Floating UI */
+        .customer-bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            color: #0f172a;
+            padding: 8px 14px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 13px;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: none;
+            transform: translate(-50%, -100%);
+            z-index: 15;
+            border: 2px solid #22c55e;
+        }
+
+        .customer-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 8px 8px 0;
+            border-style: solid;
+            border-color: rgba(255, 255, 255, 0.95) transparent;
+            display: block;
+            width: 0;
+        }
+
+        /* ==========================================================================
+           3. MODALS & SHOPS
+           ========================================================================== */
         .modal {
             position: absolute;
             top: 50%;
@@ -115,12 +200,12 @@
             border-radius: 24px;
             padding: 30px;
             width: 90%;
-            max-width: 550px;
+            max-width: 580px;
             color: #fff;
             display: none;
             flex-direction: column;
             gap: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
             z-index: 100;
         }
 
@@ -141,7 +226,7 @@
             background: transparent;
             border: none;
             color: #94a3b8;
-            font-size: 24px;
+            font-size: 28px;
             cursor: pointer;
             transition: color 0.2s;
         }
@@ -152,7 +237,7 @@
 
         .shop-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 15px;
         }
 
@@ -160,7 +245,7 @@
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
-            padding: 15px;
+            padding: 16px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -174,15 +259,15 @@
             border-color: #38bdf8;
         }
 
-        .shop-card img, .shop-card .icon {
-            font-size: 36px;
+        .shop-card .icon {
+            font-size: 40px;
         }
 
         .btn {
             background: #0284c7;
             color: #fff;
             border: none;
-            padding: 8px 16px;
+            padding: 10px 16px;
             border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
@@ -194,66 +279,73 @@
             background: #0369a1;
         }
 
-        .btn:disabled {
-            background: #334155;
-            cursor: not-allowed;
-            color: #64748b;
-        }
-
-        /* --- CONTROLS INSTRUCTIONS --- */
+        /* Controls Panel */
         #controls-hint {
             position: absolute;
             bottom: 20px;
             right: 20px;
-            background: rgba(15, 23, 42, 0.6);
+            background: rgba(15, 23, 42, 0.7);
             backdrop-filter: blur(8px);
-            padding: 12px 18px;
-            border-radius: 12px;
+            padding: 14px 20px;
+            border-radius: 14px;
             color: #94a3b8;
             font-size: 13px;
             z-index: 10;
             pointer-events: none;
+            line-height: 1.6;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        #controls-hint strong {
+            color: #f8fafc;
         }
     </style>
-    <!-- Three.js Engine -->
+
+    <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
     <div id="canvas-container"></div>
 
-    <!-- HUD Overlay -->
+    <!-- UI Overlay HUD -->
     <div id="hud">
         <div class="hud-card">
-            <h2>Farm Finances</h2>
+            <h2>Farm Funds</h2>
             <div class="value" id="money-display">$100</div>
         </div>
         <div class="hud-card">
-            <h2>Seed Bag</h2>
-            <div class="inventory-list" id="seeds-inventory">
-                <!-- Dynamically Populated -->
-            </div>
+            <h2>Seed Pouch (Select with 1-3)</h2>
+            <div class="inventory-list" id="seeds-inventory"></div>
         </div>
         <div class="hud-card">
-            <h2>Harvest Storage</h2>
-            <div class="inventory-list" id="crops-inventory">
-                <!-- Dynamically Populated -->
-            </div>
+            <h2>Harvest Barn</h2>
+            <div class="inventory-list" id="crops-inventory"></div>
         </div>
     </div>
 
-    <!-- Dynamic Prompt -->
-    <div id="interaction-prompt">Press [E] or Space to Interact</div>
+    <!-- Player Mode Indicator -->
+    <div id="mode-indicator">Mode: On Foot</div>
 
-    <!-- Controls Hint -->
+    <!-- Center Reticle -->
+    <div id="crosshair"></div>
+
+    <!-- Prompt Box -->
+    <div id="interaction-prompt">Press [E] to Interact</div>
+
+    <!-- Floating Customer Bubbles Container -->
+    <div id="customer-bubbles"></div>
+
+    <!-- Controls Box -->
     <div id="controls-hint">
-        <strong>Controls:</strong><br>
-        W/A/S/D or Arrows : Drive Car<br>
-        E or Space : Interact / Shop<br>
-        Mouse Drag : Orbit Camera
+        <strong>Controls System:</strong><br>
+        W / A / S / D : Walk / Drive<br>
+        E or Space : Interact / Buy / Harvest<br>
+        F : Enter / Exit Vehicle<br>
+        1, 2, 3 : Switch Active Seed
     </div>
 
-    <!-- Seed Shop Modal -->
+    <!-- Seed Market Modal -->
     <div class="modal" id="seed-shop-modal">
         <div class="modal-header">
             <h1>🌱 Seed Market Store</h1>
@@ -281,78 +373,50 @@
         </div>
     </div>
 
-    <!-- Popup Farm Store Modal -->
-    <div class="modal" id="farm-shop-modal">
-        <div class="modal-header">
-            <h1>🏪 Your Popup Farm Store</h1>
-            <button class="close-btn" onclick="closeModals()">&times;</button>
-        </div>
-        <p style="color: #94a3b8; font-size: 14px;">Sell your freshly harvested crops directly to local customers!</p>
-        <div class="shop-grid">
-            <div class="shop-card">
-                <div class="icon">🌾</div>
-                <h3>Sell Wheat</h3>
-                <p>Value: $25 each</p>
-                <button class="btn" onclick="sellCrop('wheat', 25)">Sell All</button>
-            </div>
-            <div class="shop-card">
-                <div class="icon">🌽</div>
-                <h3>Sell Corn</h3>
-                <p>Value: $65 each</p>
-                <button class="btn" onclick="sellCrop('corn', 65)">Sell All</button>
-            </div>
-            <div class="shop-card">
-                <div class="icon">🎃</div>
-                <h3>Sell Pumpkin</h3>
-                <p>Value: $150 each</p>
-                <button class="btn" onclick="sellCrop('pumpkin', 150)">Sell All</button>
-            </div>
-        </div>
-    </div>
-
     <script>
-        /* --- GAME ENGINE & STATE MANAGEMENT --- */
+        /* ==========================================================================
+           4. GLOBAL GAME STATE & CONSTANTS
+           ========================================================================== */
         const gameState = {
             money: 100,
-            seeds: {
-                wheat: 3,
-                corn: 0,
-                pumpkin: 0
-            },
-            crops: {
-                wheat: 0,
-                corn: 0,
-                pumpkin: 0
-            },
-            selectedSeed: 'wheat'
+            seeds: { wheat: 5, corn: 0, pumpkin: 0 },
+            crops: { wheat: 0, corn: 0, pumpkin: 0 },
+            selectedSeed: 'wheat',
+            isDriving: false
         };
 
         const cropData = {
-            wheat: { growTime: 5000, color: 0xeab308, height: 1.2, name: 'Wheat' },
-            corn: { growTime: 10000, color: 0x84cc16, height: 2.2, name: 'Corn' },
-            pumpkin: { growTime: 18000, color: 0xf97316, height: 0.8, name: 'Pumpkin' }
+            wheat: { name: 'Wheat', growTime: 4000, color: 0xeab308, value: 30, scaleY: 1.2 },
+            corn: { name: 'Corn', growTime: 8000, color: 0x84cc16, value: 75, scaleY: 2.0 },
+            pumpkin: { name: 'Pumpkin', growTime: 14000, color: 0xf97316, value: 180, scaleY: 0.8 }
         };
 
         let scene, camera, renderer, clock;
-        let car, carBody, wheels = [];
+        let player, playerBody, vehicle, carBody, wheels = [];
         let keys = {};
         let activeZone = null;
 
-        // Interactive World Zones & Plots
+        // Entities arrays
         const farmPlots = [];
+        const customers = [];
         let seedStoreZone, popupStoreZone;
 
-        /* --- INITIALIZATION --- */
+        /* ==========================================================================
+           5. INITIALIZATION & SETUP
+           ========================================================================== */
         function init() {
-            // Scene & Canvas Setup
             const container = document.getElementById('canvas-container');
+
+            // Scene setup
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87ceeb);
-            scene.fog = new THREE.FogExp2(0x87ceeb, 0.012);
+            scene.fog = new THREE.FogExp2(0x87ceeb, 0.008);
 
+            // Camera setup
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
             clock = new THREE.Clock();
 
+            // Renderer setup
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
@@ -365,72 +429,83 @@
             scene.add(ambientLight);
 
             const sunLight = new THREE.DirectionalLight(0xfffbeb, 0.9);
-            sunLight.position.set(80, 100, 50);
+            sunLight.position.set(100, 120, 60);
             sunLight.castShadow = true;
             sunLight.shadow.mapSize.width = 2048;
             sunLight.shadow.mapSize.height = 2048;
             sunLight.shadow.camera.near = 0.5;
-            sunLight.shadow.camera.far = 250;
-            const d = 100;
+            sunLight.shadow.camera.far = 300;
+            const d = 120;
             sunLight.shadow.camera.left = -d;
             sunLight.shadow.camera.right = d;
             sunLight.shadow.camera.top = d;
             sunLight.shadow.camera.bottom = -d;
             scene.add(sunLight);
 
-            // World Construction
+            // Build 3D World Environment
             createEnvironment();
-            createRoads();
+            createRoadsAndPaths();
             createFarmPlots();
             createSeedStore();
             createPopupStore();
-            createCar();
 
-            // Event Listeners
+            // Spawn Player on Foot & Vehicle
+            createPlayer();
+            createVehicle();
+
+            // Input Event Listeners
             window.addEventListener('resize', onWindowResize);
-            window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; handleInteractionKeys(e); });
-            window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+            window.addEventListener('keydown', onKeyDown);
+            window.addEventListener('keyup', onKeyUp);
 
             // Initialize UI Displays
             updateHUD();
 
-            // Start Render Loop
+            // Customer Spawning Cycle (Every 8 seconds)
+            setInterval(spawnCustomer, 8000);
+            // Spawn initial customer
+            spawnCustomer();
+
+            // Start Animation Render Loop
             animate();
         }
 
-        /* --- ENVIRONMENT CREATION --- */
+        /* ==========================================================================
+           6. ENVIRONMENT & WORLD CREATION
+           ========================================================================== */
         function createEnvironment() {
-            // Main Ground
-            const groundGeo = new THREE.PlaneGeometry(300, 300);
-            const groundMat = new THREE.MeshStandardMaterial({ color: 0x4fb352, roughness: 0.9 });
+            // Main Landscape Ground
+            const groundGeo = new THREE.PlaneGeometry(400, 400);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x3f8a42, roughness: 0.9 });
             const ground = new THREE.Mesh(groundGeo, groundMat);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
             scene.add(ground);
 
-            // Decorative Trees around the map
-            for (let i = 0; i < 60; i++) {
-                const x = (Math.random() - 0.5) * 260;
-                const z = (Math.random() - 0.5) * 260;
-                // Keep center road clear
-                if (Math.abs(x) < 30 && Math.abs(z) < 130) continue;
+            // Surrounding Trees
+            for (let i = 0; i < 90; i++) {
+                const x = (Math.random() - 0.5) * 350;
+                const z = (Math.random() - 0.5) * 350;
+                // Avoid building zones
+                if (Math.abs(x) < 40 && Math.abs(z) < 140) continue;
                 createTree(x, z);
             }
         }
 
         function createTree(x, z) {
             const group = new THREE.Group();
-            const trunkGeo = new THREE.CylinderGeometry(0.4, 0.6, 3, 8);
-            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
+            
+            const trunkGeo = new THREE.CylinderGeometry(0.5, 0.7, 3.5, 8);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18 });
             const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-            trunk.position.y = 1.5;
+            trunk.position.y = 1.75;
             trunk.castShadow = true;
             group.add(trunk);
 
-            const leavesGeo = new THREE.ConeGeometry(2.5, 5, 8);
-            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x2e8b57, roughness: 0.6 });
+            const leavesGeo = new THREE.ConeGeometry(3, 6, 8);
+            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1e6b29, roughness: 0.7 });
             const leaves = new THREE.Mesh(leavesGeo, leavesMat);
-            leaves.position.y = 4.5;
+            leaves.position.y = 5.25;
             leaves.castShadow = true;
             group.add(leaves);
 
@@ -438,55 +513,96 @@
             scene.add(group);
         }
 
-        function createRoads() {
-            // Asphalt Road connecting Farm, Seed Store, and Popup Shop
-            const roadGeo = new THREE.PlaneGeometry(16, 260);
-            const roadMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 });
+        function createRoadsAndPaths() {
+            // Main Asphalt Highway
+            const roadGeo = new THREE.PlaneGeometry(16, 300);
+            const roadMat = new THREE.MeshStandardMaterial({ color: 0x273549, roughness: 0.8 });
             const road = new THREE.Mesh(roadGeo, roadMat);
             road.rotation.x = -Math.PI / 2;
             road.position.set(0, 0.02, 0);
             road.receiveShadow = true;
             scene.add(road);
 
-            // Road Lines
-            const lineGeo = new THREE.PlaneGeometry(0.6, 260);
-            const lineMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+            // Center Road Line
+            const lineGeo = new THREE.PlaneGeometry(0.6, 300);
+            const lineMat = new THREE.MeshBasicMaterial({ color: 0xeab308 });
             const line = new THREE.Mesh(lineGeo, lineMat);
             line.rotation.x = -Math.PI / 2;
             line.position.set(0, 0.03, 0);
             scene.add(line);
+
+            // Dirt Driveway to Farm
+            const pathGeo = new THREE.PlaneGeometry(24, 18);
+            const pathMat = new THREE.MeshStandardMaterial({ color: 0x6b4f2c, roughness: 1.0 });
+            const path = new THREE.Mesh(pathGeo, pathMat);
+            path.rotation.x = -Math.PI / 2;
+            path.position.set(-20, 0.03, 10);
+            path.receiveShadow = true;
+            scene.add(path);
         }
 
-        /* --- CAR VEHICLE CREATION & PHYSICS --- */
-        function createCar() {
-            car = new THREE.Group();
+        /* ==========================================================================
+           7. ENTITIES: PLAYER & VEHICLE
+           ========================================================================== */
+        function createPlayer() {
+            player = new THREE.Group();
 
-            // Main Chassis
-            const bodyGeo = new THREE.BoxGeometry(2.4, 1.2, 4.5);
+            // Player Body Mesh (Capsule shape standing)
+            const bodyGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.8, 16);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.4 });
+            playerBody = new THREE.Mesh(bodyGeo, bodyMat);
+            playerBody.position.y = 0.9;
+            playerBody.castShadow = true;
+            player.add(playerBody);
+
+            // Player Head
+            const headGeo = new THREE.SphereGeometry(0.4, 16, 16);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xfbd5b5 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 2.0;
+            head.castShadow = true;
+            player.add(head);
+
+            // Spawn Player ON FOOT near the farm house / driveway
+            player.position.set(-15, 0, 10);
+            scene.add(player);
+
+            player.userData = {
+                speed: 0.2,
+                rotationSpeed: 0.05,
+                angle: 0
+            };
+        }
+
+        function createVehicle() {
+            vehicle = new THREE.Group();
+
+            // Vehicle Chassis
+            const bodyGeo = new THREE.BoxGeometry(2.6, 1.2, 4.8);
             const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3, metalness: 0.2 });
             carBody = new THREE.Mesh(bodyGeo, bodyMat);
-            carBody.position.y = 1;
+            carBody.position.y = 1.0;
             carBody.castShadow = true;
-            car.add(carBody);
+            vehicle.add(carBody);
 
-            // Cabin Top
-            const cabinGeo = new THREE.BoxGeometry(2, 0.9, 2.2);
-            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.1 });
+            // Cabin Roof
+            const cabinGeo = new THREE.BoxGeometry(2.2, 0.9, 2.4);
+            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1 });
             const cabin = new THREE.Mesh(cabinGeo, cabinMat);
-            cabin.position.set(0, 1.8, -0.3);
+            cabin.position.set(0, 1.85, -0.2);
             cabin.castShadow = true;
-            car.add(cabin);
+            vehicle.add(cabin);
 
             // Wheels
             const wheelGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 16);
-            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.9 });
             wheelGeo.rotateZ(Math.PI / 2);
 
             const wheelPositions = [
-                [-1.3, 0.5, 1.4],  // Front Left
-                [1.3, 0.5, 1.4],   // Front Right
-                [-1.3, 0.5, -1.4], // Rear Left
-                [1.3, 0.5, -1.4]   // Rear Right
+                [-1.35, 0.5, 1.5],  // Front L
+                [1.35, 0.5, 1.5],   // Front R
+                [-1.35, 0.5, -1.5], // Rear L
+                [1.35, 0.5, -1.5]   // Rear R
             ];
 
             wheels = [];
@@ -494,68 +610,55 @@
                 const wheel = new THREE.Mesh(wheelGeo, wheelMat);
                 wheel.position.set(...pos);
                 wheel.castShadow = true;
-                car.add(wheel);
+                vehicle.add(wheel);
                 wheels.push(wheel);
             });
 
-            // Vehicle Headlights
-            const lightGeo = new THREE.SphereGeometry(0.2, 8, 8);
-            const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            
-            const hl1 = new THREE.Mesh(lightGeo, lightMat);
-            hl1.position.set(-0.8, 1, 2.25);
-            car.add(hl1);
+            // Park vehicle on the driveway
+            vehicle.position.set(-22, 0, 14);
+            vehicle.rotation.y = Math.PI / 2;
+            scene.add(vehicle);
 
-            const hl2 = new THREE.Mesh(lightGeo, lightMat);
-            hl2.position.set(0.8, 1, 2.25);
-            car.add(hl2);
-
-            // Initialize position on road near Farm
-            car.position.set(0, 0, 10);
-            scene.add(car);
-
-            // Car Physics Properties
-            car.userData = {
+            vehicle.userData = {
                 speed: 0,
-                maxSpeed: 0.6,
-                acceleration: 0.02,
-                friction: 0.96,
-                turnSpeed: 0.035,
-                angle: 0
+                maxSpeed: 0.7,
+                acceleration: 0.025,
+                friction: 0.95,
+                turnSpeed: 0.04,
+                angle: Math.PI / 2
             };
         }
 
-        /* --- FARM PLOTS CREATION --- */
+        /* ==========================================================================
+           8. BUILDINGS & INTERACTION ZONES
+           ========================================================================== */
         function createFarmPlots() {
             const plotGridX = 3;
             const plotGridZ = 3;
             const plotSize = 5;
-            const startX = -25;
-            const startZ = -20;
+            const startX = -28;
+            const startZ = -15;
 
             for (let i = 0; i < plotGridX; i++) {
                 for (let j = 0; j < plotGridZ; j++) {
                     const plotGroup = new THREE.Group();
 
-                    // Dirt Mesh
-                    const dirtGeo = new THREE.BoxGeometry(plotSize, 0.3, plotSize);
-                    const dirtMat = new THREE.MeshStandardMaterial({ color: 0x5c3d11, roughness: 1.0 });
+                    // Soil Mesh
+                    const dirtGeo = new THREE.BoxGeometry(plotSize, 0.2, plotSize);
+                    const dirtMat = new THREE.MeshStandardMaterial({ color: 0x422a0c, roughness: 1.0 });
                     const dirt = new THREE.Mesh(dirtGeo, dirtMat);
-                    dirt.position.y = 0.15;
+                    dirt.position.y = 0.1;
                     dirt.receiveShadow = true;
                     plotGroup.add(dirt);
 
-                    // Position
                     const posX = startX + (i * (plotSize + 3));
                     const posZ = startZ + (j * (plotSize + 3));
                     plotGroup.position.set(posX, 0, posZ);
 
                     scene.add(plotGroup);
 
-                    // Store plot data
                     farmPlots.push({
                         group: plotGroup,
-                        bounds: new THREE.Box3().setFromObject(dirt),
                         state: 'empty', // 'empty', 'growing', 'ready'
                         cropType: null,
                         plantTime: 0,
@@ -565,11 +668,10 @@
             }
         }
 
-        /* --- SEED STORE CREATION --- */
         function createSeedStore() {
             const storeGroup = new THREE.Group();
 
-            // Building Structure
+            // Main Market Building
             const buildingGeo = new THREE.BoxGeometry(16, 8, 12);
             const buildingMat = new THREE.MeshStandardMaterial({ color: 0x0284c7 });
             const building = new THREE.Mesh(buildingGeo, buildingMat);
@@ -577,7 +679,7 @@
             building.castShadow = true;
             storeGroup.add(building);
 
-            // Roof
+            // Roof Structure
             const roofGeo = new THREE.ConeGeometry(12, 5, 4);
             const roofMat = new THREE.MeshStandardMaterial({ color: 0x0369a1 });
             const roof = new THREE.Mesh(roofGeo, roofMat);
@@ -585,7 +687,7 @@
             roof.rotation.y = Math.PI / 4;
             storeGroup.add(roof);
 
-            // Parking / Interactive Zone Marker
+            // Interactive Zone Marker Ring
             const zoneGeo = new THREE.RingGeometry(2, 9, 32);
             const zoneMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
             const zone = new THREE.Mesh(zoneGeo, zoneMat);
@@ -593,119 +695,239 @@
             zone.position.set(0, 0.05, 10);
             storeGroup.add(zone);
 
-            // Position at North end of road
-            storeGroup.position.set(-20, 0, -100);
+            // Position down the main road north
+            storeGroup.position.set(-20, 0, -110);
             scene.add(storeGroup);
 
             seedStoreZone = {
-                position: new THREE.Vector3(-20, 0, -90),
+                position: new THREE.Vector3(-20, 0, -100),
                 radius: 10
             };
         }
 
-        /* --- POPUP STORE CREATION --- */
         function createPopupStore() {
             const storeGroup = new THREE.Group();
 
-            // Wooden Counter / Stand
-            const counterGeo = new THREE.BoxGeometry(10, 3, 4);
-            const counterMat = new THREE.MeshStandardMaterial({ color: 0x78350f });
+            // Store Counter Stand
+            const counterGeo = new THREE.BoxGeometry(8, 2.8, 3);
+            const counterMat = new THREE.MeshStandardMaterial({ color: 0x854d0e });
             const counter = new THREE.Mesh(counterGeo, counterMat);
-            counter.position.y = 1.5;
+            counter.position.y = 1.4;
             counter.castShadow = true;
             storeGroup.add(counter);
 
-            // Canopy
-            const canopyGeo = new THREE.BoxGeometry(11, 0.4, 6);
-            const canopyMat = new THREE.MeshStandardMaterial({ color: 0xd97706 });
+            // Canopy Top
+            const canopyGeo = new THREE.BoxGeometry(9, 0.3, 5);
+            const canopyMat = new THREE.MeshStandardMaterial({ color: 0x16a34a });
             const canopy = new THREE.Mesh(canopyGeo, canopyMat);
-            canopy.position.set(0, 5, 0);
+            canopy.position.set(0, 4.5, 0);
             storeGroup.add(canopy);
 
-            // Support Poles
-            const poleGeo = new THREE.CylinderGeometry(0.1, 0.1, 3.5);
+            // Canopy Support Poles
+            const poleGeo = new THREE.CylinderGeometry(0.1, 0.1, 3.2);
             const poleMat = new THREE.MeshStandardMaterial({ color: 0x451a03 });
-            [[-4.5, -1.8], [4.5, -1.8], [-4.5, 1.8], [4.5, 1.8]].forEach(p => {
+            [[-3.8, -1.3], [3.8, -1.3], [-3.8, 1.3], [3.8, 1.3]].forEach(p => {
                 const pole = new THREE.Mesh(poleGeo, poleMat);
-                pole.position.set(p[0], 3.25, p[1]);
+                pole.position.set(p[0], 2.9, p[1]);
                 storeGroup.add(pole);
             });
 
-            // Interactive Zone Marker
-            const zoneGeo = new THREE.RingGeometry(2, 8, 32);
-            const zoneMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-            const zone = new THREE.Mesh(zoneGeo, zoneMat);
-            zone.rotation.x = -Math.PI / 2;
-            zone.position.set(0, 0.05, 6);
-            storeGroup.add(zone);
-
-            // Position at South end of road near Farm
-            storeGroup.position.set(20, 0, 30);
+            // Located directly on the edge of the farm close to the driveway
+            storeGroup.position.set(-10, 0, 25);
             scene.add(storeGroup);
 
             popupStoreZone = {
-                position: new THREE.Vector3(20, 0, 36),
-                radius: 9
+                position: new THREE.Vector3(-10, 0, 25),
+                radius: 6
             };
         }
 
-        /* --- ENGINE LOOP & CONTROLS --- */
+        /* ==========================================================================
+           9. NPC CUSTOMER SYSTEM
+           ========================================================================== */
+        function spawnCustomer() {
+            if (customers.length >= 4) return; // Limit total active customers
+
+            const customerGroup = new THREE.Group();
+
+            // Random Color Outfit
+            const colors = [0xef4444, 0x8b5cf6, 0xec4899, 0x14b8a6, 0xf59e0b];
+            const randColor = colors[Math.floor(Math.random() * colors.length)];
+
+            // Body
+            const bodyGeo = new THREE.CylinderGeometry(0.45, 0.45, 1.7, 16);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: randColor });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.85;
+            body.castShadow = true;
+            customerGroup.add(body);
+
+            // Head
+            const headGeo = new THREE.SphereGeometry(0.38, 16, 16);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xfde047 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 1.9;
+            head.castShadow = true;
+            customerGroup.add(head);
+
+            // Spawn customer on the road sidewalk
+            const spawnZ = 20 + (Math.random() * 20);
+            customerGroup.position.set(8, 0, spawnZ);
+            scene.add(customerGroup);
+
+            // Target location at your Popup Stand counter
+            const targetPos = new THREE.Vector3(-10 + (Math.random() * 4 - 2), 0, 28);
+
+            // Customer UI Bubble
+            const bubbleEl = document.createElement('div');
+            bubbleEl.className = 'customer-bubble';
+            bubbleEl.innerText = "🌾 Want Wheat ($30)";
+            document.getElementById('customer-bubbles').appendChild(bubbleEl);
+
+            customers.push({
+                group: customerGroup,
+                target: targetPos,
+                state: 'walking_to_stand', // 'walking_to_stand', 'waiting', 'leaving'
+                desiredCrop: 'wheat',
+                bubbleEl: bubbleEl
+            });
+        }
+
+        function updateCustomers(delta) {
+            const tempV = new THREE.Vector3();
+
+            customers.forEach((cust, index) => {
+                // Update 2D Floating Speech Bubble Position over 3D head
+                cust.group.getWorldPosition(tempV);
+                tempV.y += 2.6; // Height above head
+                tempV.project(camera);
+
+                const x = (tempV.x * .5 + .5) * window.innerWidth;
+                const y = (-(tempV.y * .5) + .5) * window.innerHeight;
+
+                cust.bubbleEl.style.left = `${x}px`;
+                cust.bubbleEl.style.top = `${y}px`;
+
+                // Customer Logic State Machine
+                if (cust.state === 'walking_to_stand') {
+                    cust.bubbleEl.style.display = 'block';
+                    const dir = new THREE.Vector3().subVectors(cust.target, cust.group.position);
+                    if (dir.length() < 0.5) {
+                        cust.state = 'waiting';
+                    } else {
+                        dir.normalize();
+                        cust.group.position.addScaledVector(dir, 0.06);
+                        cust.group.lookAt(cust.target);
+                    }
+                } else if (cust.state === 'leaving') {
+                    const exitPos = new THREE.Vector3(15, 0, 50);
+                    const dir = new THREE.Vector3().subVectors(exitPos, cust.group.position);
+                    if (dir.length() < 1.0) {
+                        // Remove customer when they leave
+                        scene.remove(cust.group);
+                        cust.bubbleEl.remove();
+                        customers.splice(index, 1);
+                    } else {
+                        dir.normalize();
+                        cust.group.position.addScaledVector(dir, 0.08);
+                        cust.group.lookAt(exitPos);
+                    }
+                }
+            });
+        }
+
+        /* ==========================================================================
+           10. ENGINE LOOP & CONTROLS
+           ========================================================================== */
         function animate() {
             requestAnimationFrame(animate);
 
             const delta = clock.getDelta();
 
-            updateCarPhysics();
+            if (gameState.isDriving) {
+                updateVehiclePhysics();
+            } else {
+                updatePlayerPhysics();
+            }
+
             updateCrops();
+            updateCustomers(delta);
             checkInteractionZones();
             updateCamera();
 
             renderer.render(scene, camera);
         }
 
-        function updateCarPhysics() {
-            const p = car.userData;
+        function updatePlayerPhysics() {
+            const p = player.userData;
+            let moved = false;
 
-            // Driving Acceleration / Reverse
+            // Character movement
             if (keys['w'] || keys['arrowup']) {
-                p.speed = Math.min(p.speed + p.acceleration, p.maxSpeed);
+                player.position.z -= Math.cos(p.angle) * p.speed;
+                player.position.x -= Math.sin(p.angle) * p.speed;
+                moved = true;
+            }
+            if (keys['s'] || keys['arrowdown']) {
+                player.position.z += Math.cos(p.angle) * p.speed;
+                player.position.x += Math.sin(p.angle) * p.speed;
+                moved = true;
+            }
+            if (keys['a'] || keys['arrowleft']) {
+                p.angle += p.rotationSpeed;
+                player.rotation.y = p.angle;
+            }
+            if (keys['d'] || keys['arrowright']) {
+                p.angle -= p.rotationSpeed;
+                player.rotation.y = p.angle;
+            }
+        }
+
+        function updateVehiclePhysics() {
+            const v = vehicle.userData;
+
+            // Car driving logic
+            if (keys['w'] || keys['arrowup']) {
+                v.speed = Math.min(v.speed + v.acceleration, v.maxSpeed);
             } else if (keys['s'] || keys['arrowdown']) {
-                p.speed = Math.max(p.speed - p.acceleration, -p.maxSpeed * 0.5);
+                v.speed = Math.max(v.speed - v.acceleration, -v.maxSpeed * 0.4);
             } else {
-                p.speed *= p.friction;
+                v.speed *= v.friction;
             }
 
-            // Steering
-            if (Math.abs(p.speed) > 0.01) {
-                const dir = p.speed > 0 ? 1 : -1;
-                if (keys['a'] || keys['arrowleft']) p.angle += p.turnSpeed * dir;
-                if (keys['d'] || keys['arrowright']) p.angle -= p.turnSpeed * dir;
+            if (Math.abs(v.speed) > 0.01) {
+                const dir = v.speed > 0 ? 1 : -1;
+                if (keys['a'] || keys['arrowleft']) v.angle += v.turnSpeed * dir;
+                if (keys['d'] || keys['arrowright']) v.angle -= v.turnSpeed * dir;
             }
 
-            // Apply Movements
-            car.rotation.y = p.angle;
-            car.position.x += Math.sin(p.angle) * p.speed;
-            car.position.z += Math.cos(p.angle) * p.speed;
+            vehicle.rotation.y = v.angle;
+            vehicle.position.x += Math.sin(v.angle) * v.speed;
+            vehicle.position.z += Math.cos(v.angle) * v.speed;
 
-            // Rotate wheels based on motion
-            wheels.forEach(wheel => {
-                wheel.rotation.x += p.speed * 0.5;
-            });
+            // Rotate Wheels
+            wheels.forEach(w => w.rotation.x += v.speed * 0.4);
+
+            // Sync Player location inside Car
+            player.position.copy(vehicle.position);
         }
 
         function updateCamera() {
-            // Smooth Camera Follow System
+            const targetObj = gameState.isDriving ? vehicle : player;
+
             const targetCamPos = new THREE.Vector3(
-                car.position.x - Math.sin(car.rotation.y) * 18,
-                car.position.y + 12,
-                car.position.z - Math.cos(car.rotation.y) * 18
+                targetObj.position.x - Math.sin(targetObj.rotation.y) * (gameState.isDriving ? 18 : 10),
+                targetObj.position.y + (gameState.isDriving ? 10 : 6),
+                targetObj.position.z - Math.cos(targetObj.rotation.y) * (gameState.isDriving ? 18 : 10)
             );
 
             camera.position.lerp(targetCamPos, 0.08);
-            camera.lookAt(car.position.x, car.position.y + 1, car.position.z);
+            camera.lookAt(targetObj.position.x, targetObj.position.y + 1, targetObj.position.z);
         }
 
-        /* --- CROPS GROWTH ENGINE --- */
+        /* ==========================================================================
+           11. CROPS & INTERACTION LOGIC
+           ========================================================================== */
         function updateCrops() {
             const now = Date.now();
 
@@ -715,10 +937,9 @@
                     const cData = cropData[plot.cropType];
                     const progress = Math.min(elapsed / cData.growTime, 1.0);
 
-                    // Scale crop mesh up as it grows
                     if (plot.cropMesh) {
                         const currentScale = 0.1 + (progress * 0.9);
-                        plot.cropMesh.scale.set(currentScale, currentScale, currentScale);
+                        plot.cropMesh.scale.set(currentScale, currentScale * cData.scaleY, currentScale);
                     }
 
                     if (progress >= 1.0) {
@@ -728,34 +949,44 @@
             });
         }
 
-        /* --- INTERACTION & ZONES SYSTEM --- */
         function checkInteractionZones() {
             const promptEl = document.getElementById('interaction-prompt');
-            const carPos = car.position;
+            const pos = gameState.isDriving ? vehicle.position : player.position;
             activeZone = null;
 
-            // 1. Check Seed Store
-            if (carPos.distanceTo(seedStoreZone.position) < seedStoreZone.radius) {
+            // 1. Vehicle Mount / Dismount Interaction
+            const distToVehicle = player.position.distanceTo(vehicle.position);
+            if (!gameState.isDriving && distToVehicle < 4.0) {
+                activeZone = 'enter_vehicle';
+                promptEl.innerText = "Press [F] or [E] to Drive Vehicle";
+                promptEl.style.display = 'block';
+                return;
+            } else if (gameState.isDriving) {
+                promptEl.innerText = "Driving Vehicle (Press [F] to Exit)";
+                promptEl.style.display = 'block';
+            }
+
+            // 2. Check Seed Store
+            if (pos.distanceTo(seedStoreZone.position) < seedStoreZone.radius) {
                 activeZone = 'seed_store';
-                promptEl.innerText = 'Press [E] or [Space] to Open Seed Store';
+                promptEl.innerText = "Press [E] to Open Seed Store";
                 promptEl.style.display = 'block';
                 return;
             }
 
-            // 2. Check Popup Farm Store
-            if (carPos.distanceTo(popupStoreZone.position) < popupStoreZone.radius) {
-                activeZone = 'popup_store';
-                promptEl.innerText = 'Press [E] or [Space] to Open Farm Popup Stand';
+            // 3. Check Selling to Waiting Customers at Farm Stand
+            const waitingCustomer = customers.find(c => c.state === 'waiting' && pos.distanceTo(c.group.position) < 6.0);
+            if (waitingCustomer) {
+                activeZone = { type: 'sell_customer', customer: waitingCustomer };
+                promptEl.innerText = `Press [E] to Sell Wheat ($${cropData.wheat.value}) to Customer!`;
                 promptEl.style.display = 'block';
                 return;
             }
 
-            // 3. Check Farm Plots
+            // 4. Check Farm Plot Interactions
             for (let i = 0; i < farmPlots.length; i++) {
                 const plot = farmPlots[i];
-                const distance = carPos.distanceTo(plot.group.position);
-
-                if (distance < 4.0) {
+                if (pos.distanceTo(plot.group.position) < 3.8) {
                     if (plot.state === 'empty') {
                         activeZone = { type: 'plot_plant', plot: plot };
                         promptEl.innerText = `Press [E] to Plant ${gameState.selectedSeed.toUpperCase()}`;
@@ -767,37 +998,84 @@
                         promptEl.style.display = 'block';
                         return;
                     } else if (plot.state === 'growing') {
-                        promptEl.innerText = `Crop Growing...`;
+                        promptEl.innerText = `Crops Growing...`;
                         promptEl.style.display = 'block';
                         return;
                     }
                 }
             }
 
-            promptEl.style.display = 'none';
+            if (!gameState.isDriving) {
+                promptEl.style.display = 'none';
+            }
         }
 
-        function handleInteractionKeys(e) {
-            if (e.key.toLowerCase() === 'e' || e.key === ' ') {
-                if (!activeZone) return;
+        /* ==========================================================================
+           12. INPUT HANDLERS & INTERACTIONS
+           ========================================================================== */
+        function onKeyDown(e) {
+            const key = e.key.toLowerCase();
+            keys[key] = true;
 
-                if (activeZone === 'seed_store') {
-                    document.getElementById('seed-shop-modal').style.display = 'flex';
-                } else if (activeZone === 'popup_store') {
-                    document.getElementById('farm-shop-modal').style.display = 'flex';
-                } else if (activeZone.type === 'plot_plant') {
-                    plantCrop(activeZone.plot);
-                } else if (activeZone.type === 'plot_harvest') {
-                    harvestCrop(activeZone.plot);
+            // Seed Hotkeys
+            if (key === '1') selectSeed('wheat');
+            if (key === '2') selectSeed('corn');
+            if (key === '3') selectSeed('pumpkin');
+
+            // Enter/Exit Vehicle
+            if (key === 'f') {
+                toggleVehicle();
+            }
+
+            // Interaction Trigger
+            if (key === 'e' || key === ' ') {
+                handleInteraction();
+            }
+        }
+
+        function onKeyUp(e) {
+            keys[e.key.toLowerCase()] = false;
+        }
+
+        function toggleVehicle() {
+            if (gameState.isDriving) {
+                // Exit Vehicle
+                gameState.isDriving = false;
+                player.position.set(vehicle.position.x - 3, 0, vehicle.position.z);
+                player.visible = true;
+                document.getElementById('mode-indicator').innerText = "Mode: On Foot";
+            } else {
+                // Enter Vehicle if close
+                if (player.position.distanceTo(vehicle.position) < 4.0) {
+                    gameState.isDriving = true;
+                    player.visible = false;
+                    document.getElementById('mode-indicator').innerText = "Mode: Driving";
                 }
             }
         }
 
-        /* --- FARMING GAME MECHANICS --- */
+        function handleInteraction() {
+            if (!activeZone) return;
+
+            if (activeZone === 'enter_vehicle') {
+                toggleVehicle();
+            } else if (activeZone === 'seed_store') {
+                document.getElementById('seed-shop-modal').style.display = 'flex';
+            } else if (typeof activeZone === 'object') {
+                if (activeZone.type === 'plot_plant') {
+                    plantCrop(activeZone.plot);
+                } else if (activeZone.type === 'plot_harvest') {
+                    harvestCrop(activeZone.plot);
+                } else if (activeZone.type === 'sell_customer') {
+                    sellToCustomer(activeZone.customer);
+                }
+            }
+        }
+
         function plantCrop(plot) {
             const seedType = gameState.selectedSeed;
             if (gameState.seeds[seedType] <= 0) {
-                alert(`You don't have any ${seedType} seeds left! Drive to the Seed Store to buy more.`);
+                alert(`Out of ${seedType} seeds! Drive to the Seed Store to buy more.`);
                 return;
             }
 
@@ -806,12 +1084,12 @@
             plot.cropType = seedType;
             plot.plantTime = Date.now();
 
-            // Spawn Crop Model
+            // Spawn Crop mesh
             const cData = cropData[seedType];
-            const cropGeo = new THREE.ConeGeometry(0.8, cData.height, 8);
+            const cropGeo = new THREE.ConeGeometry(0.8, 1.5, 8);
             const cropMat = new THREE.MeshStandardMaterial({ color: cData.color });
             const mesh = new THREE.Mesh(cropGeo, cropMat);
-            mesh.position.set(0, cData.height / 2 + 0.3, 0);
+            mesh.position.set(0, 0.8, 0);
             mesh.scale.set(0.1, 0.1, 0.1);
             mesh.castShadow = true;
 
@@ -825,7 +1103,6 @@
             const cropType = plot.cropType;
             gameState.crops[cropType]++;
 
-            // Clean up 3D Mesh
             plot.group.remove(plot.cropMesh);
             plot.cropMesh = null;
             plot.state = 'empty';
@@ -834,7 +1111,25 @@
             updateHUD();
         }
 
-        /* --- TYCOON ECONOMY FUNCTIONS --- */
+        function sellToCustomer(customer) {
+            const crop = customer.desiredCrop;
+
+            if (gameState.crops[crop] > 0) {
+                gameState.crops[crop]--;
+                const earned = cropData[crop].value;
+                gameState.money += earned;
+
+                // Customer leaves after buying
+                customer.state = 'leaving';
+                customer.bubbleEl.innerText = `Bought! +$${earned}`;
+                customer.bubbleEl.style.borderColor = "#38bdf8";
+
+                updateHUD();
+            } else {
+                alert(`You don't have any harvested ${crop.toUpperCase()} to sell to this customer! Harvest crops first.`);
+            }
+        }
+
         function buySeed(type, cost) {
             if (gameState.money >= cost) {
                 gameState.money -= cost;
@@ -842,19 +1137,7 @@
                 gameState.selectedSeed = type;
                 updateHUD();
             } else {
-                alert("Not enough money!");
-            }
-        }
-
-        function sellCrop(type, price) {
-            if (gameState.crops[type] > 0) {
-                const amount = gameState.crops[type];
-                const totalEarned = amount * price;
-                gameState.money += totalEarned;
-                gameState.crops[type] = 0;
-                updateHUD();
-            } else {
-                alert(`You have no harvested ${type} to sell!`);
+                alert("Not enough funds!");
             }
         }
 
@@ -862,21 +1145,27 @@
             document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
         }
 
+        function selectSeed(type) {
+            gameState.selectedSeed = type;
+            updateHUD();
+        }
+
         function updateHUD() {
             document.getElementById('money-display').innerText = `$${gameState.money}`;
 
-            // Update Seed UI
+            // Seed inventory
             const seedUI = document.getElementById('seeds-inventory');
             seedUI.innerHTML = '';
             for (let s in gameState.seeds) {
+                const isSel = gameState.selectedSeed === s;
                 seedUI.innerHTML += `
-                    <div class="inventory-item" style="cursor:pointer; color: ${gameState.selectedSeed === s ? '#38bdf8' : '#e2e8f0'}" onclick="selectSeed('${s}')">
-                        <span>${s.toUpperCase()} ${gameState.selectedSeed === s ? '(Equipped)' : ''}</span>
+                    <div class="inventory-item ${isSel ? 'selected' : ''}" onclick="selectSeed('${s}')">
+                        <span>${s.toUpperCase()}</span>
                         <span>x${gameState.seeds[s]}</span>
                     </div>`;
             }
 
-            // Update Harvest UI
+            // Crop inventory
             const cropUI = document.getElementById('crops-inventory');
             cropUI.innerHTML = '';
             for (let c in gameState.crops) {
@@ -888,18 +1177,12 @@
             }
         }
 
-        function selectSeed(type) {
-            gameState.selectedSeed = type;
-            updateHUD();
-        }
-
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // Start the game setup on load
         window.onload = init;
     </script>
 </body>
