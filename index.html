@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Haystack Tycoon: The Needle's Secret</title>
-    <!-- Tailwind CSS for modern responsive UI styling -->
+    <!-- Tailwind CSS for Responsive UI Overlay -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome icons for HUD and controls -->
+    <!-- FontAwesome Vector Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Three.js 3D Engine -->
+    <!-- Three.js 3D Rendering Engine -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <style>
@@ -27,7 +27,7 @@
             height: 100%;
             overflow: hidden;
             font-family: 'Nunito', sans-serif;
-            background-color: #0d1117;
+            background-color: #090d16;
             color: #ffffff;
         }
 
@@ -37,74 +37,77 @@
             display: block;
         }
 
-        /* FPS Crosshair */
+        /* First Person Shooter Target Crosshair */
         #crosshair {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             transform: translate(-50%, -50%);
             pointer-events: none;
-            z-index: 20;
+            z-index: 25;
+            transition: transform 0.1s ease;
         }
         #crosshair::before, #crosshair::after {
             content: '';
             position: absolute;
-            background-color: rgba(255, 255, 255, 0.85);
-            box-shadow: 0 0 4px rgba(0,0,0,0.8);
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 4px rgba(0,0,0,0.9);
+            border-radius: 1px;
         }
         #crosshair::before {
-            top: 5px;
+            top: 6px;
             left: 0;
-            width: 12px;
+            width: 14px;
             height: 2px;
         }
         #crosshair::after {
             top: 0;
-            left: 5px;
+            left: 6px;
             width: 2px;
-            height: 12px;
+            height: 14px;
         }
 
+        /* HUD Glassmorphism Panels */
         .hud-panel {
-            background: rgba(18, 24, 38, 0.75);
-            backdrop-filter: blur(12px);
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(14px);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
 
         .game-font {
             font-family: 'Fredoka One', cursive;
         }
 
-        /* Dialogue Speech Bubbles */
+        /* Dialogue Box Styling */
         .dialogue-box {
-            background: rgba(15, 23, 42, 0.92);
+            background: rgba(15, 23, 42, 0.95);
             border: 3px solid #f59e0b;
-            box-shadow: 0 0 25px rgba(245, 158, 11, 0.4);
-            border-radius: 18px;
+            box-shadow: 0 0 35px rgba(245, 158, 11, 0.45);
+            border-radius: 20px;
         }
 
         /* Floating Money Popups */
         .cash-popup {
             position: absolute;
             font-family: 'Fredoka One', cursive;
-            font-size: 22px;
+            font-size: 24px;
             font-weight: bold;
             pointer-events: none;
-            animation: floatUpFade 1.2s ease-out forwards;
-            z-index: 40;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            animation: floatUpFade 1.3s ease-out forwards;
+            z-index: 45;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.9);
         }
 
         @keyframes floatUpFade {
             0% { opacity: 1; transform: translateY(0) scale(1); }
-            50% { opacity: 1; transform: translateY(-30px) scale(1.2); }
-            100% { opacity: 0; transform: translateY(-60px) scale(0.8); }
+            50% { opacity: 1; transform: translateY(-35px) scale(1.25); }
+            100% { opacity: 0; transform: translateY(-70px) scale(0.8); }
         }
 
-        /* Custom Scrollbar */
+        /* Custom Scrollbar for Shop and Help Modals */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -113,37 +116,47 @@
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb {
-            background: #3b82f6;
+            background: #f59e0b;
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #60a5fa;
+            background: #fbbf24;
         }
 
-        /* Glowing Needle Shader Effect Overlay */
-        .golden-glow {
-            box-shadow: 0 0 20px #fbbf24, inset 0 0 15px #f59e0b;
+        /* Throwing Aim Indicator */
+        .bomb-trajectory-indicator {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px dashed #f43f5e;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: spinFast 2s linear infinite;
+        }
+        @keyframes spinFast {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
         }
     </style>
 </head>
 <body class="select-none overflow-hidden">
 
-    <!-- 3D Canvas -->
+    <!-- WebGL Render Canvas -->
     <canvas id="game-canvas"></canvas>
 
-    <!-- FPS Center Crosshair -->
+    <!-- Center FPS Crosshair -->
     <div id="crosshair"></div>
 
-    <!-- HUD Overlay -->
-    <div id="hud" class="absolute inset-0 pointer-events-none p-4 flex flex-col justify-between z-10">
+    <!-- Main Game HUD Overlay -->
+    <div id="hud" class="absolute inset-0 pointer-events-none p-5 flex flex-col justify-between z-10">
         
-        <!-- Top Navigation Bar -->
+        <!-- Top Status Bar -->
         <div class="flex justify-between items-start w-full">
-            <!-- Stats Container -->
-            <div class="flex flex-col gap-2">
-                <!-- Cash Counter -->
-                <div class="hud-panel rounded-2xl px-5 py-3 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-400 text-xl font-bold">
+            <!-- Resource Inventory Meters -->
+            <div class="flex flex-col gap-2.5">
+                <!-- Cash Balance -->
+                <div class="hud-panel rounded-2xl px-5 py-3 flex items-center gap-3.5">
+                    <div class="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-400 text-2xl font-bold">
                         <i class="fa-solid fa-coins"></i>
                     </div>
                     <div>
@@ -152,152 +165,150 @@
                     </div>
                 </div>
 
-                <!-- Sack Inventory Meter -->
-                <div class="hud-panel rounded-2xl px-5 py-3 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-emerald-400 text-xl font-bold">
+                <!-- Sack Carrying Capacity -->
+                <div class="hud-panel rounded-2xl px-5 py-3 flex items-center gap-3.5">
+                    <div class="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-emerald-400 text-2xl font-bold">
                         <i class="fa-solid fa-sack-xmark"></i>
                     </div>
-                    <div class="w-48">
+                    <div class="w-52">
                         <div class="flex justify-between text-xs font-bold text-gray-300 mb-1">
                             <span>Sack Capacity</span>
                             <span id="sack-count-text">0 / 25</span>
                         </div>
-                        <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
+                        <div class="w-full bg-slate-800 rounded-full h-3.5 overflow-hidden border border-slate-700">
                             <div id="sack-bar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full transition-all duration-200" style="width: 0%"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Objectives & Timer -->
-            <div class="flex flex-col items-end gap-2">
+            <!-- Objectives & Game Clock -->
+            <div class="flex flex-col items-end gap-2.5">
                 <div class="hud-panel rounded-2xl px-5 py-3 text-right">
-                    <div class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center justify-end gap-2">
-                        <i class="fa-solid fa-compass animate-spin" style="animation-duration: 8s;"></i> Current Objective
+                    <div class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center justify-end gap-2">
+                        <i class="fa-solid fa-compass animate-spin" style="animation-duration: 10s;"></i> Current Objective
                     </div>
-                    <div id="objective-text" class="text-sm font-extrabold text-white mt-0.5 max-w-xs">
-                        Search the 15,000 hay pile for the Golden Needle!
+                    <div id="objective-text" class="text-sm font-extrabold text-white mt-1 max-w-xs">
+                        Search the 15,000 straw hay pile for the Golden Needle!
                     </div>
                 </div>
 
-                <!-- Game Timer -->
+                <!-- Clock Counter -->
                 <div class="hud-panel rounded-xl px-4 py-2 flex items-center gap-2 text-sm font-bold text-slate-300">
                     <i class="fa-solid fa-stopwatch text-sky-400"></i> Time Elapsed: <span id="game-timer" class="text-white font-mono">00:00</span>
                 </div>
             </div>
         </div>
 
-        <!-- Center Interactive Prompt -->
-        <div id="interaction-prompt" class="self-center mb-20 hud-panel px-6 py-3 rounded-full text-white text-sm font-bold flex items-center gap-3 opacity-0 transition-opacity duration-200">
+        <!-- Center Interactive Context Prompt -->
+        <div id="interaction-prompt" class="self-center mb-16 hud-panel px-6 py-3 rounded-full text-white text-sm font-bold flex items-center gap-3 opacity-0 transition-opacity duration-200">
             <span class="bg-amber-500 text-slate-950 px-2.5 py-1 rounded-lg text-xs font-black game-font" id="prompt-key">E</span>
-            <span id="prompt-text">Interact with Shopkeeper Bob</span>
+            <span id="prompt-text">Interact</span>
         </div>
 
-        <!-- Bottom Action Bar & Bomb Ability -->
+        <!-- Bottom Action Bar & Bomb Throw Controls -->
         <div class="flex justify-between items-end w-full">
-            <!-- Shift-Lock & Controls Helper -->
-            <div class="hud-panel rounded-2xl p-3 text-xs text-slate-300 space-y-1">
-                <div><span class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300 font-bold">WASD</span> Move</div>
-                <div><span class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300 font-bold">SPACE / CLICK</span> Pick Up Hay</div>
-                <div><span class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300 font-bold">T</span> Toggle Mouse Lock</div>
+            <!-- Controls Helper Box -->
+            <div class="hud-panel rounded-2xl p-3.5 text-xs text-slate-300 space-y-1">
+                <div><span class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300 font-bold">WASD</span> Move Player</div>
+                <div><span class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300 font-bold">SPACE / CLICK</span> Collect Hay</div>
+                <div><span class="bg-slate-700 px-1.5 py-0.5 rounded text-rose-300 font-bold">B / CLICK BOMB</span> Throw Explosive Bomb</div>
+                <div><span class="bg-slate-700 px-1.5 py-0.5 rounded text-amber-300 font-bold">T</span> Toggle Shift Lock</div>
             </div>
 
-            <!-- Bomb Power Button -->
-            <div id="bomb-container" class="hud-panel rounded-2xl p-4 flex items-center gap-4 border border-rose-500/30">
-                <button id="btn-bomb" onclick="useBomb()" class="w-14 h-14 rounded-xl bg-gradient-to-tr from-rose-600 to-red-500 text-white font-black text-2xl flex items-center justify-center shadow-lg shadow-rose-900/50 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none">
+            <!-- Throw Bomb Action Button -->
+            <div id="bomb-container" class="hud-panel rounded-2xl p-4 flex items-center gap-4 border border-rose-500/40">
+                <button id="btn-bomb" onclick="throwBomb()" class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-600 via-red-500 to-orange-500 text-white font-black text-2xl flex items-center justify-center shadow-lg shadow-rose-950/60 hover:scale-105 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none pointer-events-auto cursor-pointer">
                     <i class="fa-solid fa-bomb"></i>
                 </button>
                 <div>
-                    <div class="text-xs font-bold text-rose-300 uppercase">Hay Bomb Ability</div>
-                    <div class="text-sm font-black text-white" id="bomb-status-text">Ready to Explode</div>
-                    <div class="text-xs text-slate-400 mt-0.5" id="bomb-stats-sub text">Clears 100 Hay (10% x3)</div>
+                    <div class="text-xs font-bold text-rose-300 uppercase tracking-wider">Throw Explosive Bomb [B]</div>
+                    <div class="text-sm font-black text-white" id="bomb-status-text">Ready to Throw!</div>
+                    <div class="text-xs text-slate-400 mt-0.5" id="bomb-stats-sub">Harvests up to 100 Hay (10% x3)</div>
                 </div>
             </div>
 
-            <!-- Top Action Buttons (Shop, Leaderboard, Help) -->
-            <div class="flex gap-2 pointer-events-auto">
-                <button onclick="toggleLeaderboardModal()" class="hud-panel rounded-2xl p-3.5 hover:bg-slate-800 text-amber-400 font-extrabold flex items-center gap-2 transition-all">
-                    <i class="fa-solid fa-trophy text-lg"></i> Leaderboard
+            <!-- Menu Navigation Buttons -->
+            <div class="flex gap-2.5 pointer-events-auto">
+                <button onclick="toggleLeaderboardModal()" class="hud-panel rounded-2xl px-4 py-3 hover:bg-slate-800 text-amber-400 font-extrabold flex items-center gap-2 transition-all cursor-pointer">
+                    <i class="fa-solid fa-trophy text-lg"></i> Leaderboards
                 </button>
-                <button onclick="toggleHelpModal()" class="hud-panel rounded-2xl p-3.5 hover:bg-slate-800 text-sky-400 font-extrabold flex items-center gap-2 transition-all">
+                <button onclick="toggleHelpModal()" class="hud-panel rounded-2xl px-4 py-3 hover:bg-slate-800 text-sky-400 font-extrabold flex items-center gap-2 transition-all cursor-pointer">
                     <i class="fa-solid fa-book-open text-lg"></i> Guide
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Dialogue / Cutscene Box -->
+    <!-- 3D Physical Cutscene Dialogue Box -->
     <div id="cutscene-overlay" class="absolute inset-0 pointer-events-none flex flex-col justify-between p-8 z-30 opacity-0 transition-opacity duration-500">
-        <!-- Cinematic Letterbox Top -->
-        <div class="w-full h-16 bg-black/90"></div>
+        <div class="w-full h-16 bg-slate-950/90 border-b border-amber-500/20"></div>
 
-        <!-- Dynamic Speech Bubble -->
-        <div id="dialogue-container" class="self-center dialogue-box px-8 py-5 max-w-xl w-full text-center pointer-events-auto shadow-2xl transform transition-transform">
-            <div id="speaker-name" class="text-amber-400 game-font text-xl mb-1">The Stranger</div>
-            <div id="dialogue-text" class="text-white text-lg font-bold">"Finally, you have found my needle!"</div>
+        <div id="dialogue-container" class="self-center dialogue-box px-8 py-6 max-w-xl w-full text-center pointer-events-auto shadow-2xl">
+            <div id="speaker-name" class="text-amber-400 game-font text-2xl mb-1">The Stranger</div>
+            <div id="dialogue-text" class="text-white text-lg font-bold italic">"Finally! You have found my needle!"</div>
         </div>
 
-        <!-- Cinematic Letterbox Bottom -->
-        <div class="w-full h-16 bg-black/90 flex items-center justify-center text-slate-400 text-sm font-bold">
-            CINEMATIC STORY SEQUENCE
+        <div class="w-full h-16 bg-slate-950/90 border-t border-amber-500/20 flex items-center justify-center text-amber-400/80 text-sm font-extrabold tracking-widest game-font">
+            STORY CUTSCENE SEQUENCE
         </div>
     </div>
 
-    <!-- Shop Modal Window -->
-    <div id="shop-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-        <div class="hud-panel rounded-3xl border border-amber-500/30 w-full max-w-2xl overflow-hidden shadow-2xl">
-            <!-- Shop Header -->
-            <div class="bg-gradient-to-r from-amber-600 to-amber-800 p-6 flex justify-between items-center text-white">
+    <!-- Shop Modal -->
+    <div id="shop-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+        <div class="hud-panel rounded-3xl border border-amber-500/40 w-full max-w-2xl overflow-hidden shadow-2xl">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-amber-600 via-amber-700 to-yellow-600 p-6 flex justify-between items-center text-white">
                 <div>
                     <h2 class="text-2xl font-black game-font flex items-center gap-3">
                         <i class="fa-solid fa-store"></i> Shopkeeper Bob's Farm Upgrades
                     </h2>
-                    <p class="text-amber-200 text-xs font-semibold mt-1">Upgrade your gear, sacks, pickup speed, and bombs!</p>
+                    <p class="text-amber-100 text-xs font-bold mt-1">Upgrade sacks, pitchforks, bomb physics, and luck!</p>
                 </div>
-                <button onclick="closeShopModal()" class="w-10 h-10 rounded-full bg-slate-900/50 text-white font-bold text-xl flex items-center justify-center hover:bg-slate-900 transition-all">
+                <button onclick="closeShopModal()" class="w-10 h-10 rounded-full bg-slate-900/60 text-white font-bold text-xl flex items-center justify-center hover:bg-slate-900 transition-all cursor-pointer">
                     &times;
                 </button>
             </div>
 
-            <!-- Shop Items Grid -->
-            <div class="p-6 max-h-[70vh] overflow-y-auto space-y-4">
+            <!-- Item Upgrades List -->
+            <div class="p-6 max-h-[68vh] overflow-y-auto space-y-4">
                 
-                <!-- Item 1: Sack Capacity Upgrade -->
-                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
+                <!-- Item 1: Sack Tier -->
+                <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
                     <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl font-bold">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center text-2xl font-bold">
                             <i class="fa-solid fa-sack-dollar"></i>
                         </div>
                         <div>
-                            <div class="font-extrabold text-white text-base">Capacity Sack Upgrade</div>
-                            <div class="text-xs text-slate-400" id="sack-upgrade-desc">Next Tier: Hold 50 Hay</div>
+                            <div class="font-extrabold text-white text-base">Sack Capacity Upgrade</div>
+                            <div class="text-xs text-slate-400" id="sack-upgrade-desc">Next Tier: Holds 50 Hay</div>
                         </div>
                     </div>
-                    <button id="btn-buy-sack" onclick="buySackUpgrade()" class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black game-font transition-all">
+                    <button id="btn-buy-sack" onclick="buySackUpgrade()" class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black game-font transition-all cursor-pointer">
                         Buy $100
                     </button>
                 </div>
 
-                <!-- Item 2: Pitchfork Upgrade -->
-                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
+                <!-- Item 2: Pitchfork Upgrade (Doubling Price x2) -->
+                <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
                     <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl font-bold">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center text-2xl font-bold">
                             <i class="fa-solid fa-wheat-awn"></i>
                         </div>
                         <div>
-                            <div class="font-extrabold text-white text-base">Iron Pitchfork Tier</div>
+                            <div class="font-extrabold text-white text-base">Pitchfork Upgrade (Price Doubles!)</div>
                             <div class="text-xs text-slate-400" id="pitchfork-upgrade-desc">Collect +2 additional hay per grab (Level 0/20)</div>
                         </div>
                     </div>
-                    <button id="btn-buy-pitchfork" onclick="buyPitchforkUpgrade()" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black game-font transition-all">
+                    <button id="btn-buy-pitchfork" onclick="buyPitchforkUpgrade()" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black game-font transition-all cursor-pointer">
                         Buy $10
                     </button>
                 </div>
 
-                <!-- Item 3: Cooldown Speed Upgrade -->
-                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
+                <!-- Item 3: Pickup Delay Cooldown Reducer -->
+                <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
                     <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-2xl font-bold">
+                        <div class="w-12 h-12 rounded-xl bg-sky-500/20 border border-sky-500/40 text-sky-400 flex items-center justify-center text-2xl font-bold">
                             <i class="fa-solid fa-bolt"></i>
                         </div>
                         <div>
@@ -305,47 +316,63 @@
                             <div class="text-xs text-slate-400" id="cooldown-upgrade-desc">Reduces pickup delay by -0.05s (Current: 1.00s)</div>
                         </div>
                     </div>
-                    <button id="btn-buy-cooldown" onclick="buyCooldownUpgrade()" class="px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black game-font transition-all">
+                    <button id="btn-buy-cooldown" onclick="buyCooldownUpgrade()" class="px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black game-font transition-all cursor-pointer">
                         Buy $25
                     </button>
                 </div>
 
-                <!-- Item 4: Bomb Purchase -->
-                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
+                <!-- Item 4: Throwing Bomb Unlock -->
+                <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
                     <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-2xl font-bold">
+                        <div class="w-12 h-12 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center text-2xl font-bold">
                             <i class="fa-solid fa-bomb"></i>
                         </div>
                         <div>
-                            <div class="font-extrabold text-white text-base">Hay Exploding Bomb</div>
-                            <div class="text-xs text-slate-400">Explodes hay in a blast zone (10% triple chance)</div>
+                            <div class="font-extrabold text-white text-base">Throwable Hay Bomb</div>
+                            <div class="text-xs text-slate-400">Throw physical bomb to blast hay (10% triple yield)</div>
                         </div>
                     </div>
-                    <button id="btn-buy-bomb" onclick="buyBomb()" class="px-5 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-slate-950 font-black game-font transition-all">
+                    <button id="btn-buy-bomb" onclick="buyBomb()" class="px-5 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-slate-950 font-black game-font transition-all cursor-pointer">
                         Buy $1000
                     </button>
                 </div>
 
-                <!-- Item 5: Bomb Power Upgrade -->
-                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
+                <!-- Item 5: Bomb Harvest Radius Power -->
+                <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
                     <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center text-2xl font-bold">
+                        <div class="w-12 h-12 rounded-xl bg-orange-500/20 border border-orange-500/40 text-orange-400 flex items-center justify-center text-2xl font-bold">
                             <i class="fa-solid fa-burst"></i>
                         </div>
                         <div>
-                            <div class="font-extrabold text-white text-base">Bomb Blast Radius Power</div>
-                            <div class="text-xs text-slate-400" id="bomb-power-desc">Increases bomb harvest capacity (Max 300 hay)</div>
+                            <div class="font-extrabold text-white text-base">Bomb Explosion Radius Power</div>
+                            <div class="text-xs text-slate-400" id="bomb-power-desc">Increases max harvested hay per bomb (Max 300)</div>
                         </div>
                     </div>
-                    <button id="btn-buy-bomb-power" onclick="buyBombPowerUpgrade()" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-slate-950 font-black game-font transition-all">
+                    <button id="btn-buy-bomb-power" onclick="buyBombPowerUpgrade()" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-slate-950 font-black game-font transition-all cursor-pointer">
                         Buy $250
                     </button>
                 </div>
 
-                <!-- Item 6: Luck Boost Upgrade -->
-                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
+                <!-- Item 6: Bomb Cooldown Speed Upgrade -->
+                <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
                     <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-2xl font-bold">
+                        <div class="w-12 h-12 rounded-xl bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 flex items-center justify-center text-2xl font-bold">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <div>
+                            <div class="font-extrabold text-white text-base">Bomb Cooldown Speed</div>
+                            <div class="text-xs text-slate-400" id="bomb-cooldown-desc">Speeds up bomb timer by -0.25s (Max 7.5s)</div>
+                        </div>
+                    </div>
+                    <button id="btn-buy-bomb-cooldown" onclick="buyBombCooldownUpgrade()" class="px-5 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black game-font transition-all cursor-pointer">
+                        Buy $300
+                    </button>
+                </div>
+
+                <!-- Item 7: Rare Hay Luck Charm -->
+                <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 flex justify-between items-center">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-400 flex items-center justify-center text-2xl font-bold">
                             <i class="fa-solid fa-clover"></i>
                         </div>
                         <div>
@@ -353,7 +380,7 @@
                             <div class="text-xs text-slate-400" id="luck-upgrade-desc">+3% chance for Grass & Gold hay (Max 18%)</div>
                         </div>
                     </div>
-                    <button id="btn-buy-luck" onclick="buyLuckUpgrade()" class="px-5 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-black game-font transition-all">
+                    <button id="btn-buy-luck" onclick="buyLuckUpgrade()" class="px-5 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-black game-font transition-all cursor-pointer">
                         Buy $150
                     </button>
                 </div>
@@ -363,56 +390,59 @@
     </div>
 
     <!-- Leaderboard Modal -->
-    <div id="leaderboard-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-        <div class="hud-panel rounded-3xl border border-amber-500/30 w-full max-w-2xl overflow-hidden shadow-2xl">
+    <div id="leaderboard-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+        <div class="hud-panel rounded-3xl border border-amber-500/40 w-full max-w-2xl overflow-hidden shadow-2xl">
             <div class="bg-gradient-to-r from-amber-600 to-yellow-600 p-6 flex justify-between items-center text-slate-950">
                 <h2 class="text-2xl font-black game-font flex items-center gap-3">
                     <i class="fa-solid fa-trophy"></i> Farm Tycoon Leaderboards
                 </h2>
-                <button onclick="toggleLeaderboardModal()" class="w-10 h-10 rounded-full bg-slate-950/20 text-slate-950 font-bold text-xl flex items-center justify-center hover:bg-slate-950/40 transition-all">
+                <button onclick="toggleLeaderboardModal()" class="w-10 h-10 rounded-full bg-slate-950/20 text-slate-950 font-bold text-xl flex items-center justify-center hover:bg-slate-950/40 transition-all cursor-pointer">
                     &times;
                 </button>
             </div>
 
-            <!-- Tab Headers -->
-            <div class="flex border-b border-slate-800 bg-slate-900/60">
-                <button id="tab-btn-time" onclick="switchLeaderboardTab('time')" class="flex-1 py-3 text-center font-extrabold text-amber-400 border-b-2 border-amber-400">
-                    <i class="fa-solid fa-stopwatch"></i> Fastest Needle Find Time
+            <!-- Tabs -->
+            <div class="flex border-b border-slate-800 bg-slate-900/80">
+                <button id="tab-btn-time" onclick="switchLeaderboardTab('time')" class="flex-1 py-3 text-center font-extrabold text-amber-400 border-b-2 border-amber-400 cursor-pointer">
+                    <i class="fa-solid fa-stopwatch"></i> Top 10 Fastest Times
                 </button>
-                <button id="tab-btn-money" onclick="switchLeaderboardTab('money')" class="flex-1 py-3 text-center font-extrabold text-slate-400">
+                <button id="tab-btn-money" onclick="switchLeaderboardTab('money')" class="flex-1 py-3 text-center font-extrabold text-slate-400 cursor-pointer">
                     <i class="fa-solid fa-coins"></i> Most Money Accumulated
                 </button>
             </div>
 
-            <!-- Leaderboard Content -->
+            <!-- List -->
             <div class="p-6 max-h-[60vh] overflow-y-auto">
-                <div id="leaderboard-list" class="space-y-2">
+                <div id="leaderboard-list" class="space-y-2.5">
                     <!-- Dynamic rendering -->
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Help / Guide Modal -->
-    <div id="help-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-        <div class="hud-panel rounded-3xl border border-sky-500/30 w-full max-w-2xl overflow-hidden shadow-2xl">
+    <!-- Help Modal -->
+    <div id="help-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+        <div class="hud-panel rounded-3xl border border-sky-500/40 w-full max-w-2xl overflow-hidden shadow-2xl">
             <div class="bg-gradient-to-r from-sky-600 to-blue-700 p-6 flex justify-between items-center text-white">
                 <h2 class="text-2xl font-black game-font flex items-center gap-3">
                     <i class="fa-solid fa-book-open"></i> Game Instructions & Guide
                 </h2>
-                <button onclick="toggleHelpModal()" class="w-10 h-10 rounded-full bg-slate-900/50 text-white font-bold text-xl flex items-center justify-center hover:bg-slate-900 transition-all">
+                <button onclick="toggleHelpModal()" class="w-10 h-10 rounded-full bg-slate-900/60 text-white font-bold text-xl flex items-center justify-center hover:bg-slate-900 transition-all cursor-pointer">
                     &times;
                 </button>
             </div>
-            <!-- Scrollable Guide Content -->
             <div class="p-6 max-h-[60vh] overflow-y-auto space-y-4 text-slate-300 text-sm leading-relaxed">
-                <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
-                    <h3 class="font-bold text-amber-400 text-base mb-1">🌾 The Haystack Objective</h3>
-                    <p>There are over 15,000 thin straw pieces piled in front of the farmhouse. Somewhere hidden inside is the legendary Golden Needle. Collect hay one by one or click directly on the Golden Needle once revealed!</p>
+                <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800">
+                    <h3 class="font-bold text-amber-400 text-base mb-1">🌾 The Needle in a Haystack Search</h3>
+                    <p>There are over 15,000 thin straw pieces piled in front of the farmhouse! Somewhere inside is the Golden Needle (1 to 30 min find chance). You can gather hay piece by piece or directly click on the Golden Needle when visible!</p>
                 </div>
-                <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
-                    <h3 class="font-bold text-emerald-400 text-base mb-1">💰 Hay Rarities & Cash Values</h3>
-                    <ul class="list-disc list-inside space-y-1 mt-1 text-xs">
+                <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800">
+                    <h3 class="font-bold text-rose-400 text-base mb-1">💣 Throwing Explosive Bombs</h3>
+                    <p>Buy the Bomb in Bob's shop for $1000! Press <b>B</b> or click the Bomb button to throw a physical bomb into the hay field. Upon landing, it creates a visual fireball shockwave that clears hay into your sack (with a 10% chance for triple yield)!</p>
+                </div>
+                <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800">
+                    <h3 class="font-bold text-emerald-400 text-base mb-1">💰 Hay Rarities & Payouts</h3>
+                    <ul class="list-disc list-inside space-y-1 text-xs">
                         <li><b class="text-amber-200">Normal Hay (75%)</b>: $1 Cash</li>
                         <li><b class="text-blue-300">Wet Hay (50%)</b>: $2 Cash</li>
                         <li><b class="text-emerald-300">Grass Hay (25%)</b>: $3 Cash</li>
@@ -421,12 +451,6 @@
                         <li><b class="text-pink-400">Rainbow Hay (3%)</b>: $10 Cash</li>
                         <li><b class="text-sky-300">Diamond Hay (0.5%)</b>: $100 Cash</li>
                     </ul>
-                </div>
-                <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
-                    <h3 class="font-bold text-sky-400 text-base mb-1">👨‍🌾 The 3 Farm Characters</h3>
-                    <p><b>Farmer Joe (Seller)</b>: Stands at the left counter in front of the house to buy your filled sack of hay.<br>
-                    <b>Shopkeeper Bob (Vendor)</b>: Stands in the middle shop to sell pitchforks, capacity sacks, cooldowns, and bombs.<br>
-                    <b>The Stranger</b>: Stands near the door waiting for the Golden Needle!</p>
                 </div>
             </div>
         </div>
@@ -458,33 +482,46 @@
                 } catch (e) {}
             }
             playCollect() {
-                this.playTone(440, 0.1, 'triangle', 0.15);
-                setTimeout(() => this.playTone(660, 0.1, 'sine', 0.12), 50);
+                this.playTone(520, 0.08, 'triangle', 0.15);
+                setTimeout(() => this.playTone(780, 0.08, 'sine', 0.12), 40);
             }
             playSell() {
-                this.playTone(523.25, 0.15, 'sine', 0.2);
-                setTimeout(() => this.playTone(659.25, 0.15, 'sine', 0.2), 100);
-                setTimeout(() => this.playTone(783.99, 0.2, 'sine', 0.25), 200);
+                this.playTone(523.25, 0.12, 'sine', 0.2);
+                setTimeout(() => this.playTone(659.25, 0.12, 'sine', 0.2), 80);
+                setTimeout(() => this.playTone(783.99, 0.18, 'sine', 0.25), 160);
             }
-            playBomb() {
+            playBombThrow() {
+                this.playTone(200, 0.2, 'sawtooth', 0.15);
+                setTimeout(() => this.playTone(350, 0.15, 'sine', 0.1), 80);
+            }
+            playExplosion() {
                 if (!this.ctx) return;
-                const bufferSize = this.ctx.sampleRate * 0.5;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
-                const noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
-                noise.connect(gain);
-                gain.connect(this.ctx.destination);
-                noise.start();
+                try {
+                    const bufferSize = this.ctx.sampleRate * 0.7;
+                    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = Math.random() * 2 - 1;
+                    }
+                    const noise = this.ctx.createBufferSource();
+                    noise.buffer = buffer;
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(300, this.ctx.currentTime);
+                    filter.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.6);
+
+                    const gain = this.ctx.createGain();
+                    gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.65);
+
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    noise.start();
+                } catch(e) {}
             }
             playDialogue() {
-                this.playTone(300 + Math.random() * 150, 0.06, 'square', 0.08);
+                this.playTone(280 + Math.random() * 160, 0.06, 'square', 0.08);
             }
         }
         const audio = new SoundEngine();
@@ -499,19 +536,19 @@
             
             pitchforkLevel: 0,
             pitchforkMaxLevel: 20,
-            pitchforkCost: 10,
+            pitchforkCost: 10, // Doubling price x2
             
             pickupCooldown: 1.00,
-            cooldownCost: 25,
+            cooldownCost: 25, // Doubling price x2
             minCooldown: 0.25,
 
             hasBomb: false,
             bombCost: 1000,
             bombCooldownTimer: 0,
-            bombMaxCooldown: 15,
+            bombMaxCooldown: 15.0,
             bombPower: 100,
-            bombPowerLevel: 0,
             bombPowerCost: 250,
+            bombCooldownCost: 300,
 
             luckBonus: 0,
             luckCost: 150,
@@ -533,13 +570,13 @@
             z: 8,
             yaw: 0,
             pitch: 0,
-            speed: 0.12,
+            speed: 0.13,
             isLocked: false,
             canCollect: true
         };
         const keys = {};
 
-        // Hay & World Meshes
+        // Hay & World Geometry Arrays
         const HAY_TOTAL = 15000;
         let hayInstancedMesh;
         let hayPositions = [];
@@ -547,9 +584,14 @@
         let needleMesh, needleLight;
         let basementDoorMesh;
         let alienMesh;
-        let ufoMesh;
+        let ufoMesh, ufoLightBeam;
 
-        // Interactive Entities
+        // Active Flying Bombs Physics List
+        let activeBombs = [];
+        let activeExplosions = [];
+        let screenShake = 0;
+
+        // NPCs & Animals
         let farmerJoeMesh, shopkeeperBobMesh, strangerMesh;
         const animals = [];
 
@@ -573,23 +615,23 @@
 
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87ceeb);
-            scene.fog = new THREE.FogExp2(0x87ceeb, 0.015);
+            scene.fog = new THREE.FogExp2(0x87ceeb, 0.012);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
             camera.rotation.order = 'YXZ';
 
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            // Ambient & Sun Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
             scene.add(ambientLight);
 
-            const sunLight = new THREE.DirectionalLight(0xfff5ea, 1.2);
+            const sunLight = new THREE.DirectionalLight(0xfff5ea, 1.25);
             sunLight.position.set(40, 60, 20);
             sunLight.castShadow = true;
             sunLight.shadow.mapSize.width = 2048;
             sunLight.shadow.mapSize.height = 2048;
             sunLight.shadow.camera.near = 0.5;
-            sunLight.shadow.camera.far = 150;
-            const d = 35;
+            sunLight.shadow.camera.far = 160;
+            const d = 40;
             sunLight.shadow.camera.left = -d;
             sunLight.shadow.camera.right = d;
             sunLight.shadow.camera.top = d;
@@ -598,9 +640,9 @@
         }
 
         function buildFarmEnvironment() {
-            // Ground Grass Plane
-            const groundGeo = new THREE.PlaneGeometry(120, 120);
-            const groundMat = new THREE.MeshStandardMaterial({ color: 0x4caf50, roughness: 0.8 });
+            // Ground Grass
+            const groundGeo = new THREE.PlaneGeometry(140, 140);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x4caf50, roughness: 0.85 });
             const ground = new THREE.Mesh(groundGeo, groundMat);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
@@ -610,22 +652,21 @@
             const fenceMat = new THREE.MeshStandardMaterial({ color: 0x8d6e63 });
             const fenceCoords = [-35, 35];
             fenceCoords.forEach(pos => {
-                const fenceX = new THREE.Mesh(new THREE.BoxGeometry(70, 2, 0.3), fenceMat);
-                fenceX.position.set(0, 1, pos);
+                const fenceX = new THREE.Mesh(new THREE.BoxGeometry(70, 2.2, 0.3), fenceMat);
+                fenceX.position.set(0, 1.1, pos);
                 fenceX.castShadow = true;
                 scene.add(fenceX);
 
-                const fenceZ = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2, 70), fenceMat);
-                fenceZ.position.set(pos, 1, 0);
+                const fenceZ = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.2, 70), fenceMat);
+                fenceZ.position.set(pos, 1.1, 0);
                 fenceZ.castShadow = true;
                 scene.add(fenceZ);
             });
 
-            // Farmhouse Structure
+            // Farmhouse
             const houseGroup = new THREE.Group();
             houseGroup.position.set(-10, 0, -12);
 
-            // Walls
             const walls = new THREE.Mesh(
                 new THREE.BoxGeometry(10, 6, 8),
                 new THREE.MeshStandardMaterial({ color: 0xb71c1c })
@@ -635,21 +676,20 @@
             walls.receiveShadow = true;
             houseGroup.add(walls);
 
-            // Roof
-            const roofGeo = new THREE.ConeGeometry(7.5, 4, 4);
+            const roofGeo = new THREE.ConeGeometry(7.8, 4.2, 4);
             const roofMat = new THREE.MeshStandardMaterial({ color: 0x3e2723 });
             const roof = new THREE.Mesh(roofGeo, roofMat);
-            roof.position.y = 8;
+            roof.position.y = 8.1;
             roof.rotation.y = Math.PI / 4;
             roof.castShadow = true;
             houseGroup.add(roof);
 
             scene.add(houseGroup);
 
-            // Shop Counter Setup (In front of House)
+            // Shop Stalls in Front of House
             buildShopCounters();
 
-            // Basement Trapdoor (Ground level near Stranger)
+            // Basement Trapdoor
             const trapdoorGeo = new THREE.BoxGeometry(3, 0.2, 3);
             const trapdoorMat = new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 0.9 });
             basementDoorMesh = new THREE.Mesh(trapdoorGeo, trapdoorMat);
@@ -660,13 +700,13 @@
         function buildShopCounters() {
             const woodMat = new THREE.MeshStandardMaterial({ color: 0x6d4c41 });
 
-            // Shop Counter (Shopkeeper Bob - Center)
+            // Center: Shopkeeper Bob
             const shopCounter = new THREE.Mesh(new THREE.BoxGeometry(3, 1.2, 1), woodMat);
             shopCounter.position.set(-12, 0.6, -1.8);
             shopCounter.castShadow = true;
             scene.add(shopCounter);
 
-            // Selling Stall Counter (Farmer Joe - Right of Shop)
+            // Right: Farmer Joe (Seller)
             const sellCounter = new THREE.Mesh(new THREE.BoxGeometry(3, 1.2, 1), woodMat);
             sellCounter.position.set(-8, 0.6, -1.8);
             sellCounter.castShadow = true;
@@ -689,12 +729,12 @@
             strangerMesh.position.set(2, 0, -8);
             scene.add(strangerMesh);
 
-            // Trapped Alien Mesh (Hidden initially)
+            // Alien Companion
             alienMesh = createAlienMesh();
             alienMesh.position.set(0, -20, 0);
             scene.add(alienMesh);
 
-            // 7 Farm Animals outside the fence gate
+            // 7 Animals Outside
             spawnFarmAnimals();
         }
 
@@ -704,17 +744,14 @@
             const legMat = new THREE.MeshStandardMaterial({ color: pantsColor });
             const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac });
 
-            // Torso
             const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.1, 0.4), bodyMat);
             body.position.y = 1.35;
             group.add(body);
 
-            // Head
             const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), skinMat);
             head.position.y = 2.2;
             group.add(head);
 
-            // Legs
             const legL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.8, 0.35), legMat);
             legL.position.set(-0.2, 0.4, 0);
             group.add(legL);
@@ -740,7 +777,6 @@
             head.scale.set(1.2, 1, 1);
             group.add(head);
 
-            // Big Eyes
             const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), eyeMat);
             eyeL.position.set(-0.15, 1.45, 0.3);
             group.add(eyeL);
@@ -780,8 +816,7 @@
             body.position.y = 1.2;
             group.add(body);
 
-            // Black Spots
-            const spot = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.1), blackMat);
+            const spot = new THREE.Mesh(new THREE.BoxGeometry(0.81, 0.81, 0.1), blackMat);
             spot.position.set(0.81, 1.2, 0);
             group.add(spot);
 
@@ -807,9 +842,7 @@
         }
 
         function generateHaystackMound() {
-            const strawGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.9, 5);
-            
-            // Materials for different hay rarities
+            const strawGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.85, 4);
             const normalMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.8 });
             
             hayInstancedMesh = new THREE.InstancedMesh(strawGeo, normalMat, HAY_TOTAL);
@@ -817,17 +850,15 @@
             hayInstancedMesh.receiveShadow = true;
 
             const dummy = new THREE.Object3D();
-            const moundRadius = 6.5;
+            const moundRadius = 6.2;
 
             for (let i = 0; i < HAY_TOTAL; i++) {
-                // Radius distribution for mounded shape
                 const r = Math.sqrt(Math.random()) * moundRadius;
                 const theta = Math.random() * Math.PI * 2;
 
                 const x = Math.cos(theta) * r;
-                const z = Math.sin(theta) * r - 1; // Centered in front of house
-                // Mound height formula
-                const maxY = Math.max(0.2, (1 - (r / moundRadius)) * 3.5);
+                const z = Math.sin(theta) * r - 1;
+                const maxY = Math.max(0.2, (1 - (r / moundRadius)) * 3.4);
                 const y = Math.random() * maxY;
 
                 dummy.position.set(x, y, z);
@@ -840,10 +871,8 @@
                 dummy.updateMatrix();
 
                 hayInstancedMesh.setMatrixAt(i, dummy.matrix);
-
                 hayPositions.push({ x: x, y: y, z: z, active: true });
 
-                // Calculate rarity chance
                 const rand = Math.random();
                 let rarity = 'normal';
                 if (rand < 0.005) rarity = 'diamond';
@@ -859,29 +888,26 @@
             hayInstancedMesh.instanceMatrix.needsUpdate = true;
             scene.add(hayInstancedMesh);
 
-            // Hide Golden Needle inside haystack at random position
             spawnHiddenNeedle();
         }
 
         function spawnHiddenNeedle() {
-            const needleGeo = new THREE.CylinderGeometry(0.02, 0.06, 1.2, 8);
-            const needleMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.9, roughness: 0.1 });
+            const needleGeo = new THREE.CylinderGeometry(0.015, 0.05, 1.1, 8);
+            const needleMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.95, roughness: 0.1 });
             
             needleMesh = new THREE.Mesh(needleGeo, needleMat);
             
-            // Random position in hay mound
-            const r = Math.random() * 4.5;
+            const r = Math.random() * 4.2;
             const theta = Math.random() * Math.PI * 2;
             const x = Math.cos(theta) * r;
             const z = Math.sin(theta) * r - 1;
-            const y = Math.random() * 1.5 + 0.3;
+            const y = Math.random() * 1.4 + 0.3;
 
             needleMesh.position.set(x, y, z);
             needleMesh.rotation.z = Math.PI / 4;
             scene.add(needleMesh);
 
-            // Point Light for Golden Ring Aura
-            needleLight = new THREE.PointLight(0xfbbf24, 2, 6);
+            needleLight = new THREE.PointLight(0xfbbf24, 2.2, 6);
             needleLight.position.set(x, y, z);
             scene.add(needleLight);
         }
@@ -892,12 +918,9 @@
             document.addEventListener('keydown', (e) => {
                 keys[e.code] = true;
 
-                if (e.code === 'KeyT') {
-                    togglePointerLock();
-                }
-                if (e.code === 'Space') {
-                    attemptHayPickup();
-                }
+                if (e.code === 'KeyT') togglePointerLock();
+                if (e.code === 'Space') attemptHayPickup();
+                if (e.code === 'KeyB') throwBomb();
             });
 
             document.addEventListener('keyup', (e) => {
@@ -908,8 +931,6 @@
                 if (player.isLocked) {
                     player.yaw -= e.movementX * 0.0025;
                     player.pitch -= e.movementY * 0.0025;
-
-                    // Pitch limit (-87deg to +87deg)
                     player.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, player.pitch));
                 }
             });
@@ -949,22 +970,20 @@
         function attemptHayPickup() {
             if (!player.canCollect || gameState.chapter !== 1) return;
 
-            // Check if player reaches max capacity
             if (gameState.currentHay >= gameState.maxHayCapacity) {
                 showPromptNotice("Sack is full! Sell hay to Farmer Joe.");
                 return;
             }
 
-            // Raycast forward from camera center
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-            // Direct Golden Needle Click Pickup check
+            // Direct Needle Pickup Click
             if (needleMesh && !gameState.hasNeedle) {
                 const intersects = raycaster.intersectObject(needleMesh);
                 const distToNeedle = camera.position.distanceTo(needleMesh.position);
                 
-                if (intersects.length > 0 || distToNeedle <= 3.0) {
+                if (intersects.length > 0 || distToNeedle <= 3.2) {
                     gameState.hasNeedle = true;
                     gameState.needleFoundTime = Math.floor((Date.now() - gameState.startTime) / 1000);
                     scene.remove(needleMesh);
@@ -989,9 +1008,8 @@
                 const dz = camera.position.z - hp.z;
                 const dist = Math.sqrt(dx * dx + dz * dz);
 
-                if (dist <= 3.2) {
+                if (dist <= 3.4) {
                     hp.active = false;
-                    // Zero matrix to hide instance
                     const zeroMat = new THREE.Matrix4().setScale(0, 0, 0);
                     hayInstancedMesh.setMatrixAt(i, zeroMat);
 
@@ -1007,12 +1025,93 @@
                 audio.playCollect();
                 updateHUDUI();
 
-                // Trigger Pickup Cooldown
                 player.canCollect = false;
                 setTimeout(() => {
                     player.canCollect = true;
                 }, gameState.pickupCooldown * 1000);
             }
+        }
+
+        function throwBomb() {
+            if (!gameState.hasBomb || gameState.bombCooldownTimer > 0) return;
+
+            audio.playBombThrow();
+
+            // Create 3D Bomb Mesh
+            const bombGeo = new THREE.SphereGeometry(0.35, 16, 16);
+            const bombMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2, metalness: 0.8 });
+            const bombMesh = new THREE.Mesh(bombGeo, bombMat);
+
+            // Fuse Spark
+            const fuseGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.3);
+            const fuseMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+            const fuse = new THREE.Mesh(fuseGeo, fuseMat);
+            fuse.position.set(0, 0.35, 0);
+            bombMesh.add(fuse);
+
+            // Starting Position & Camera World Direction Vector
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+
+            bombMesh.position.copy(camera.position).add(dir.clone().multiplyScalar(0.8));
+            scene.add(bombMesh);
+
+            // Throw Physics Impulse Velocity
+            const throwSpeed = 16.0;
+            const velocity = dir.clone().multiplyScalar(throwSpeed);
+            velocity.y += 4.0; // Arch upward trajectory
+
+            activeBombs.push({
+                mesh: bombMesh,
+                vel: velocity,
+                life: 1.8 // Detonates in 1.8s or ground contact
+            });
+
+            // Trigger Bomb Cooldown
+            gameState.bombCooldownTimer = gameState.bombMaxCooldown;
+            updateHUDUI();
+        }
+
+        function triggerExplosion(pos) {
+            audio.playExplosion();
+            screenShake = 0.45; // Camera shake intensity
+
+            // Explosion Visual Sphere
+            const expGeo = new THREE.SphereGeometry(2.5, 16, 16);
+            const expMat = new THREE.MeshBasicMaterial({ color: 0xff4500, transparent: true, opacity: 0.9 });
+            const expMesh = new THREE.Mesh(expGeo, expMat);
+            expMesh.position.copy(pos);
+            scene.add(expMesh);
+
+            activeExplosions.push({ mesh: expMesh, scale: 1.0, opacity: 0.9 });
+
+            // 10% Chance for Triple Harvest Yield
+            const isTriple = Math.random() < 0.10;
+            const harvestCap = isTriple ? gameState.bombPower * 3 : gameState.bombPower;
+
+            let harvested = 0;
+            for (let i = 0; i < HAY_TOTAL; i++) {
+                const hp = hayPositions[i];
+                if (!hp.active) continue;
+
+                const dx = pos.x - hp.x;
+                const dz = pos.z - hp.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+
+                if (dist <= 7.5) {
+                    hp.active = false;
+                    const zeroMat = new THREE.Matrix4().setScale(0, 0, 0);
+                    hayInstancedMesh.setMatrixAt(i, zeroMat);
+                    harvested++;
+                    if (harvested >= harvestCap) break;
+                }
+            }
+
+            hayInstancedMesh.instanceMatrix.needsUpdate = true;
+            gameState.currentHay = Math.min(gameState.maxHayCapacity, gameState.currentHay + harvested);
+
+            showPromptNotice(isTriple ? "TRIPLE BOMB BLAST! Massive Hay Harvested!" : "BOMB EXPLOSION! Hay Harvested!");
+            updateHUDUI();
         }
 
         function sellHay() {
@@ -1024,13 +1123,13 @@
             let totalPayout = 0;
             for (let i = 0; i < gameState.currentHay; i++) {
                 const rand = Math.random() + (gameState.luckBonus * 0.01);
-                if (rand > 0.995) totalPayout += 100; // Diamond
-                else if (rand > 0.96) totalPayout += 10; // Rainbow
-                else if (rand > 0.86) totalPayout += 7;  // Gold
-                else if (rand > 0.70) totalPayout += 5;  // Glass
-                else if (rand > 0.45) totalPayout += 3;  // Grass
-                else if (rand > 0.25) totalPayout += 2;  // Wet
-                else totalPayout += 1;                  // Normal
+                if (rand > 0.995) totalPayout += 100;
+                else if (rand > 0.96) totalPayout += 10;
+                else if (rand > 0.86) totalPayout += 7;
+                else if (rand > 0.70) totalPayout += 5;
+                else if (rand > 0.45) totalPayout += 3;
+                else if (rand > 0.25) totalPayout += 2;
+                else totalPayout += 1;
             }
 
             gameState.cash += totalPayout;
@@ -1064,7 +1163,7 @@
             if (gameState.cash >= gameState.pitchforkCost) {
                 gameState.cash -= gameState.pitchforkCost;
                 gameState.pitchforkLevel++;
-                // Doubling price x2.0
+                // Doubling price x2
                 gameState.pitchforkCost = Math.round(gameState.pitchforkCost * 2);
                 audio.playSell();
                 updateShopUI();
@@ -1116,6 +1215,19 @@
             }
         }
 
+        function buyBombCooldownUpgrade() {
+            if (gameState.bombMaxCooldown <= 7.5) return;
+
+            if (gameState.cash >= gameState.bombCooldownCost) {
+                gameState.cash -= gameState.bombCooldownCost;
+                gameState.bombMaxCooldown = Math.max(7.5, gameState.bombMaxCooldown - 0.25);
+                gameState.bombCooldownCost = Math.round(gameState.bombCooldownCost * 1.8);
+                audio.playSell();
+                updateShopUI();
+                updateHUDUI();
+            }
+        }
+
         function buyLuckUpgrade() {
             if (gameState.luckBonus >= 18) return;
 
@@ -1129,53 +1241,18 @@
             }
         }
 
-        function useBomb() {
-            if (!gameState.hasBomb || gameState.bombCooldownTimer > 0) return;
-
-            audio.playBomb();
-
-            // 10% Chance to triple harvested amount
-            const isTriple = Math.random() < 0.10;
-            const harvestCap = isTriple ? gameState.bombPower * 3 : gameState.bombPower;
-
-            let harvested = 0;
-            for (let i = 0; i < HAY_TOTAL; i++) {
-                const hp = hayPositions[i];
-                if (!hp.active) continue;
-
-                const dx = camera.position.x - hp.x;
-                const dz = camera.position.z - hp.z;
-                const dist = Math.sqrt(dx * dx + dz * dz);
-
-                if (dist <= 8.0) {
-                    hp.active = false;
-                    const zeroMat = new THREE.Matrix4().setScale(0, 0, 0);
-                    hayInstancedMesh.setMatrixAt(i, zeroMat);
-                    harvested++;
-                    if (harvested >= harvestCap) break;
-                }
-            }
-
-            hayInstancedMesh.instanceMatrix.needsUpdate = true;
-            gameState.currentHay = Math.min(gameState.maxHayCapacity, gameState.currentHay + harvested);
-
-            gameState.bombCooldownTimer = gameState.bombMaxCooldown;
-            showPromptNotice(isTriple ? "TRIPLE BOMB BLAST! Massive Hay Harvested!" : "Hay Bomb Exploded!");
-            updateHUDUI();
-        }
-
         function triggerStrangerCutscene() {
-            gameState.chapter = 2; // Move state to cutscene/chapter 2
+            gameState.chapter = 2;
             document.exitPointerLock();
 
             const overlay = document.getElementById('cutscene-overlay');
             overlay.style.opacity = '1';
 
             const dialogLines = [
-                { speaker: "The Stranger", text: "Finally! You have found my needle!" },
+                { speaker: "The Stranger", text: "Finally! You have found my golden needle!" },
                 { speaker: "You (Player)", text: "Ye ye ok... so where is the money you promised me?" },
                 { speaker: "The Stranger", text: "Oh yes... I almost forgot!" },
-                { speaker: "The Stranger", text: "There it is! Every last penny of it in the basement!" },
+                { speaker: "The Stranger", text: "There it is! Every last penny of it down in the basement!" },
                 { speaker: "You (Player)", text: "I don't see anythi..." }
             ];
 
@@ -1187,7 +1264,6 @@
                     document.getElementById('dialogue-text').innerText = `"${dialogLines[lineIndex].text}"`;
                     audio.playDialogue();
 
-                    // Open basement trapdoor on line 3
                     if (lineIndex === 3) {
                         basementDoorMesh.rotation.x = Math.PI / 2;
                     }
@@ -1195,7 +1271,6 @@
                     lineIndex++;
                     setTimeout(showNextLine, 2800);
                 } else {
-                    // Kicking physical action into basement!
                     showPromptNotice("The Stranger kicks you into the basement!");
                     setTimeout(() => {
                         overlay.style.opacity = '0';
@@ -1213,22 +1288,19 @@
             player.z = 0;
             camera.position.set(player.x, player.y, player.z);
 
-            // Build Dungeon Room
-            const dungeonGeo = new THREE.BoxGeometry(20, 8, 20);
+            const dungeonGeo = new THREE.BoxGeometry(22, 8, 22);
             const dungeonMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, side: THREE.BackSide, roughness: 0.9 });
             const dungeon = new THREE.Mesh(dungeonGeo, dungeonMat);
             dungeon.position.set(0, -20, 0);
             scene.add(dungeon);
 
-            // Light in basement
-            const dungeonLight = new THREE.PointLight(0xf59e0b, 1.5, 25);
+            const dungeonLight = new THREE.PointLight(0xf59e0b, 1.8, 25);
             dungeonLight.position.set(0, -17, 0);
             scene.add(dungeonLight);
 
-            // Move Alien Companion to basement corner
             alienMesh.position.set(-6, -19.2, -6);
 
-            document.getElementById('objective-text').innerText = "Pull 3 Levers & Find the Golden Key to Escape!";
+            document.getElementById('objective-text').innerText = "Pull 3 Levers & Find the Key to Escape!";
             showPromptNotice("Chapter 2: The Basement Trap!");
             requestPointerLock();
         }
@@ -1238,7 +1310,7 @@
 
             const delta = 0.016;
 
-            // Update Bomb Cooldown Timer
+            // Bomb Cooldown Counter
             if (gameState.bombCooldownTimer > 0) {
                 gameState.bombCooldownTimer -= delta;
                 if (gameState.bombCooldownTimer <= 0) gameState.bombCooldownTimer = 0;
@@ -1250,6 +1322,41 @@
             const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
             const secs = String(elapsed % 60).padStart(2, '0');
             document.getElementById('game-timer').innerText = `${mins}:${secs}`;
+
+            // Active Bomb Physics
+            for (let i = activeBombs.length - 1; i >= 0; i--) {
+                const b = activeBombs[i];
+                b.vel.y -= 18.0 * delta; // Gravity
+                b.mesh.position.addScaledVector(b.vel, delta);
+                b.life -= delta;
+
+                if (b.mesh.position.y <= 0.3 || b.life <= 0) {
+                    triggerExplosion(b.mesh.position);
+                    scene.remove(b.mesh);
+                    activeBombs.splice(i, 1);
+                }
+            }
+
+            // Explosion Sphere Fade Animation
+            for (let i = activeExplosions.length - 1; i >= 0; i--) {
+                const exp = activeExplosions[i];
+                exp.scale += delta * 6.0;
+                exp.opacity -= delta * 2.0;
+                exp.mesh.scale.set(exp.scale, exp.scale, exp.scale);
+                exp.mesh.material.opacity = Math.max(0, exp.opacity);
+
+                if (exp.opacity <= 0) {
+                    scene.remove(exp.mesh);
+                    activeExplosions.splice(i, 1);
+                }
+            }
+
+            // Camera Screen Shake Decay
+            if (screenShake > 0) {
+                camera.position.x += (Math.random() - 0.5) * screenShake;
+                camera.position.y += (Math.random() - 0.5) * screenShake;
+                screenShake -= delta * 1.5;
+            }
 
             // Player FPS Movement
             if (player.isLocked) {
@@ -1274,25 +1381,23 @@
                     player.z += (moveX * sin + moveZ * cos) * moveSpeed;
                 }
 
-                // Boundary bounds check
+                // Bounds Boundary
                 if (gameState.chapter === 1) {
                     player.x = Math.max(-33, Math.min(33, player.x));
                     player.z = Math.max(-33, Math.min(33, player.z));
                 } else if (gameState.chapter === 2) {
-                    player.x = Math.max(-9, Math.min(9, player.x));
-                    player.z = Math.max(-9, Math.min(9, player.z));
+                    player.x = Math.max(-9.5, Math.min(9.5, player.x));
+                    player.z = Math.max(-9.5, Math.min(9.5, player.z));
                 }
 
-                // Camera orientation
                 camera.position.set(player.x, player.y, player.z);
                 camera.rotation.y = player.yaw;
                 camera.rotation.x = player.pitch;
             }
 
-            // Check Proximity Interactions
             checkInteractions();
 
-            // Animate Farm Animals
+            // Animal Wandering
             animals.forEach(a => {
                 a.mesh.position.x += Math.cos(a.dir) * 0.02;
                 a.mesh.position.z += Math.sin(a.dir) * 0.02;
@@ -1336,7 +1441,6 @@
             const pct = Math.min(100, (gameState.currentHay / gameState.maxHayCapacity) * 100);
             document.getElementById('sack-bar').style.width = `${pct}%`;
 
-            // Bomb Button Status
             const bombBtn = document.getElementById('btn-bomb');
             const bombStatusText = document.getElementById('bomb-status-text');
 
@@ -1348,12 +1452,12 @@
                 bombStatusText.innerText = `Cooldown: ${Math.ceil(gameState.bombCooldownTimer)}s`;
             } else {
                 bombBtn.disabled = false;
-                bombStatusText.innerText = "Ready to Explode";
+                bombStatusText.innerText = "Ready to Throw [B]";
             }
         }
 
         function updateShopUI() {
-            // Sack Upgrade
+            // Sack
             const sackDesc = document.getElementById('sack-upgrade-desc');
             const btnSack = document.getElementById('btn-buy-sack');
             if (gameState.sackTierIndex < gameState.sackCosts.length) {
@@ -1367,7 +1471,7 @@
                 btnSack.innerText = "MAX";
             }
 
-            // Pitchfork
+            // Pitchfork (Doubled Price x2)
             const pitchDesc = document.getElementById('pitchfork-upgrade-desc');
             const btnPitch = document.getElementById('btn-buy-pitchfork');
             if (gameState.pitchforkLevel < gameState.pitchforkMaxLevel) {
@@ -1379,7 +1483,7 @@
                 btnPitch.innerText = "MAX";
             }
 
-            // Cooldown
+            // Cooldown (Doubled Price x2)
             const coolDesc = document.getElementById('cooldown-upgrade-desc');
             const btnCool = document.getElementById('btn-buy-cooldown');
             if (gameState.pickupCooldown > gameState.minCooldown) {
@@ -1389,6 +1493,18 @@
                 coolDesc.innerText = "MAX SPEED REACHED (0.25s)";
                 btnCool.disabled = true;
                 btnCool.innerText = "MAX";
+            }
+
+            // Bomb Cooldown
+            const bCoolDesc = document.getElementById('bomb-cooldown-desc');
+            const btnBCool = document.getElementById('btn-buy-bomb-cooldown');
+            if (gameState.bombMaxCooldown > 7.5) {
+                bCoolDesc.innerText = `Speeds up timer by -0.25s (Current: ${gameState.bombMaxCooldown.toFixed(2)}s)`;
+                btnBCool.innerText = `Buy $${gameState.bombCooldownCost}`;
+            } else {
+                bCoolDesc.innerText = "MAX BOMB SPEED REACHED (7.5s)";
+                btnBCool.disabled = true;
+                btnBCool.innerText = "MAX";
             }
         }
 
@@ -1406,7 +1522,7 @@
             popup.style.left = '50%';
             popup.style.top = '45%';
             document.body.appendChild(popup);
-            setTimeout(() => popup.remove(), 1200);
+            setTimeout(() => popup.remove(), 1300);
         }
 
         function openShopModal() {
@@ -1444,8 +1560,8 @@
         }
 
         function switchLeaderboardTab(type) {
-            document.getElementById('tab-btn-time').className = type === 'time' ? 'flex-1 py-3 text-center font-extrabold text-amber-400 border-b-2 border-amber-400' : 'flex-1 py-3 text-center font-extrabold text-slate-400';
-            document.getElementById('tab-btn-money').className = type === 'money' ? 'flex-1 py-3 text-center font-extrabold text-amber-400 border-b-2 border-amber-400' : 'flex-1 py-3 text-center font-extrabold text-slate-400';
+            document.getElementById('tab-btn-time').className = type === 'time' ? 'flex-1 py-3 text-center font-extrabold text-amber-400 border-b-2 border-amber-400 cursor-pointer' : 'flex-1 py-3 text-center font-extrabold text-slate-400 cursor-pointer';
+            document.getElementById('tab-btn-money').className = type === 'money' ? 'flex-1 py-3 text-center font-extrabold text-amber-400 border-b-2 border-amber-400 cursor-pointer' : 'flex-1 py-3 text-center font-extrabold text-slate-400 cursor-pointer';
             renderLeaderboard(type);
         }
 
@@ -1458,7 +1574,12 @@
                 { name: "NeedleHunter", time: "02:10" },
                 { name: "HayMaster", time: "03:45" },
                 { name: "StrawPro", time: "05:12" },
-                { name: "SpeedyJoe", time: "06:30" }
+                { name: "SpeedyJoe", time: "06:30" },
+                { name: "GoldDigger", time: "07:15" },
+                { name: "BarnBoss", time: "08:40" },
+                { name: "FarmerPete", time: "09:55" },
+                { name: "SackMaster", time: "11:20" },
+                { name: "HaystackHero", time: "12:05" }
             ];
 
             const dummyMoneyData = [
@@ -1466,14 +1587,19 @@
                 { name: "GoldFarmer", cash: "$32,150" },
                 { name: "DiamondJack", cash: "$28,900" },
                 { name: "HaystackBoss", cash: "$19,400" },
-                { name: "FarmerJoe", cash: "$12,000" }
+                { name: "FarmerJoe", cash: "$12,000" },
+                { name: "NeedleKing", cash: "$9,850" },
+                { name: "CropMaster", cash: "$7,300" },
+                { name: "StrawRich", cash: "$5,400" },
+                { name: "FarmLegend", cash: "$3,200" },
+                { name: "RookieJoe", cash: "$1,500" }
             ];
 
             const entries = type === 'time' ? dummyTimeData : dummyMoneyData;
 
             entries.forEach((item, idx) => {
                 const row = document.createElement('div');
-                row.className = 'bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex justify-between items-center text-sm font-bold';
+                row.className = 'bg-slate-900/90 p-3 rounded-2xl border border-slate-800 flex justify-between items-center text-sm font-bold';
                 row.innerHTML = `
                     <div class="flex items-center gap-3">
                         <span class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-black">${idx + 1}</span>
